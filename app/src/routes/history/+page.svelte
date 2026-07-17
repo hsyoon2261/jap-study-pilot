@@ -2,36 +2,50 @@
 	import { onMount } from 'svelte';
 	import { getSrs } from '$lib/progress';
 
-	type Log = { ts: string; deck: string; item: string; mode: string; correct: boolean; ms: number|null };
+	type Log = { ts: string; correct: boolean };
 	type Item = { id: string; front: string; back: string; ko?: string };
 
-	let logs = $state<Log[]>([]);
+	const KST = 32400000;
+
 	let itemMap: Record<string, Item> = {};
 	let loaded = $state(false);
 	let srs = $state<Record<string, { box:number; right:number; wrong:number }>>({});
+	let total = $state(0);
+	let correctN = $state(0);
+	let byDay = $state<{ d:string; n:number; ok:number; pct:number }[]>([]);
 
 	onMount(async () => {
-		try { logs = JSON.parse(localStorage.getItem('jsp_logs_v1') || '[]'); } catch { logs = []; }
-		srs = getSrs();
+		let ok = false;
+		try {
+			const st = await fetch('/api/state').then(r => r.ok ? r.json() : null);
+			if (st?.ok) {
+				total = st.total; correctN = st.correct; srs = st.srs || {};
+				byDay = (st.byDay || []).map((r: any) => ({ d: r.d, n: r.n, ok: r.ok, pct: r.n ? Math.round(r.ok*100/r.n) : 0 }));
+				ok = true;
+			}
+		} catch { /* 폴백 */ }
+		if (!ok) {
+			// 오프라인·비로그인 폴백: 로컬 기록
+			let logs: Log[] = [];
+			try { logs = JSON.parse(localStorage.getItem('jsp_logs_v1') || '[]'); } catch { logs = []; }
+			total = logs.length; correctN = logs.filter(l => l.correct).length; srs = getSrs();
+			const m: Record<string, {n:number; ok:number}> = {};
+			for (const l of logs) { const d = (l.ts||'').slice(0,10); if (!d) continue; (m[d] ||= {n:0,ok:0}); m[d].n++; if (l.correct) m[d].ok++; }
+			byDay = Object.entries(m).sort().map(([d,v]) => ({ d, n:v.n, ok:v.ok, pct: Math.round(v.ok*100/v.n) }));
+		}
 		const decks = await Promise.all(['kana','hiragana-words','katakana-words'].map(id =>
 			fetch(`/content/${id}.json`).then(r => r.json()).catch(() => ({items:[]}))));
 		for (const d of decks) for (const it of (d.items||[])) itemMap[(d.id||'')+':'+it.id] = it;
 		loaded = true;
 	});
 
-	const total = $derived(logs.length);
-	const correctN = $derived(logs.filter(l => l.correct).length);
 	const pct = $derived(total ? Math.round(correctN/total*100) : 0);
-	const byDay = $derived.by(() => {
-		const m: Record<string, {n:number; ok:number}> = {};
-		for (const l of logs) { const d = (l.ts||'').slice(0,10); if (!d) continue; (m[d] ||= {n:0,ok:0}); m[d].n++; if (l.correct) m[d].ok++; }
-		return Object.entries(m).sort().map(([d,v]) => ({ d, n:v.n, ok:v.ok, pct: Math.round(v.ok*100/v.n) }));
-	});
 	const days = $derived(byDay.length);
 	const streak = $derived.by(() => {
 		const set = new Set(byDay.map(x => x.d));
-		let s = 0; const dt = new Date();
-		for (;;) { const key = dt.toISOString().slice(0,10); if (set.has(key)) { s++; dt.setDate(dt.getDate()-1); } else if (s===0 && key===new Date().toISOString().slice(0,10)) { dt.setDate(dt.getDate()-1); } else break; }
+		let s = 0; const dt = new Date(Date.now() + KST);
+		const today = new Date(Date.now() + KST).toISOString().slice(0,10);
+		for (;;) { const key = dt.toISOString().slice(0,10); if (set.has(key)) { s++; dt.setUTCDate(dt.getUTCDate()-1); } else if (s===0 && key===today) { dt.setUTCDate(dt.getUTCDate()-1); } else break; }
 		return s;
 	});
 	const weak = $derived.by(() =>
@@ -42,7 +56,7 @@
 
 <div class="page">
 	<h1 class="page-title">기록 📊</h1>
-	<p class="page-sub">이 기기에 쌓인 학습 기록. (로그인 붙으면 계정으로 이어진다)</p>
+	<p class="page-sub">계정에 쌓인 학습 기록. 매일 조금씩 늘려가자.</p>
 
 	{#if !loaded}
 		<p class="page-sub">불러오는 중…</p>

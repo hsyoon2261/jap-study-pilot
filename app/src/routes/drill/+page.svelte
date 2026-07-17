@@ -38,6 +38,8 @@
 	let hintText = $state('');
 	let qStart = 0;
 	let typingEl = $state<HTMLInputElement | null>(null);
+	// 서버(D1) SRS — 로그인 사용자의 실제 복습 상태. buildQueue의 due·약점 가중에 사용.
+	let srsData: Record<string, { box: number; right: number; wrong: number; due: string }> = {};
 
 	function filteredItems(): Item[] {
 		if (!deck) return [];
@@ -63,7 +65,7 @@
 			pool = pool.filter((it) => set.has(it.id));
 		}
 		if (!pool.length) return null;
-		const srs = getSrs();
+		const srs = Object.keys(srsData).length ? srsData : getSrs();
 		const now = nowIso();
 		const due: Item[] = [], fresh: Item[] = [], rest: Item[] = [];
 		for (const it of pool) {
@@ -186,6 +188,11 @@
 		} catch {
 			errorMsg = '콘텐츠를 못 불러왔어.'; phase = 'result'; return;
 		}
+		// 서버 SRS 로드 (복습 우선·약점 가중). 실패(비로그인·오프라인)면 로컬 폴백.
+		try {
+			const st = await fetch('/api/state').then((r) => (r.ok ? r.json() : null));
+			if (st?.srs) srsData = st.srs;
+		} catch { /* 로컬 getSrs() 폴백 */ }
 		const q = buildQueue();
 		if (!q) { errorMsg = '범위가 너무 좁아 (보기 4개를 못 만들어).'; phase = 'result'; return; }
 		queue = q; idx = 0; correct = 0; wrong = [];
