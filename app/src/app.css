@@ -1,0 +1,46 @@
+:root {
+  --bg: #14161b;
+  --surface: #191c22;
+  --card: #1d2027;
+  --btn: #272b34;
+  --text: #eceae4;
+  --sub: #a4a29a;
+  --border: #33373f;
+  --accent: #e5735f;
+  --accent-soft: rgba(229, 115, 95, 0.14);
+  --ok: #57c78a;
+  --ok-soft: rgba(87, 199, 138, 0.14);
+  --jp: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif;
+  --ko: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { background: var(--bg); }
+
+body {
+  font-family: var(--ko);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+/* 학습 콘텐츠 공통 폭: ~80% 중앙, 큰 글씨 (학습자 배려) */
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 18px 90px;
+}
+@media (max-width: 640px) {
+  .page { padding: 20px 14px 90px; }
+}
+
+.page-title { font-size: 27px; font-weight: 800; letter-spacing: -0.01em; }
+.page-sub { color: var(--sub); font-size: 15px; margin-top: 4px; word-break: keep-all; }
+
+.jp { font-family: var(--jp); }
