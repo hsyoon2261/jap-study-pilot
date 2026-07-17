@@ -40,7 +40,7 @@
 	{#if loaded}
 		{#if pending.length}
 			<section class="block">
-				<div class="block-h">오늘의 세트</div>
+				<div class="block-h">오늘의 세트 · {pending.length}개 남음</div>
 				<div class="grid">
 					{#each pending as s (s.id)}
 						<a class="card" href={`/drill?set=${s.id}`}>
