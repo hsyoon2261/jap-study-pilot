@@ -6,3 +6,8 @@ main = ".svelte-kit/cloudflare/_worker.js"
 [assets]
 binding = "ASSETS"
 directory = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jap-study-db"
+database_id = "35d875d7-f659-409f-8d81-99658f4b8af2"

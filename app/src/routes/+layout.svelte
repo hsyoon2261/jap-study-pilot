@@ -2,8 +2,26 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+	let ready = $state(false);
+	let authed = $state(false);
+
+	onMount(async () => {
+		if (page.url.pathname === '/login') { ready = true; return; }
+		try {
+			const r = await fetch('/api/me');
+			authed = r.ok;
+		} catch { authed = false; }
+		if (!authed) { location.href = '/login'; return; }
+		ready = true;
+	});
+
+	async function logout() {
+		await fetch('/api/me', { method: 'POST' }).catch(() => {});
+		location.href = '/login';
+	}
 
 	const NAV = [
 		{ href: '/', icon: '🏠', label: '오늘' },
@@ -24,18 +42,22 @@
 	<title>일본어 학습</title>
 </svelte:head>
 
-<nav class="sidenav">
-	{#each NAV as item (item.href)}
-		<a href={item.href} class:on={isActive(item.href)}>
-			<span class="ic">{item.icon}</span>
-			<span class="lb">{item.label}</span>
-		</a>
-	{/each}
-</nav>
-
-<main class="app-main">
+{#if page.url.pathname === '/login'}
 	{@render children()}
-</main>
+{:else if ready}
+	<nav class="sidenav">
+		{#each NAV as item (item.href)}
+			<a href={item.href} class:on={isActive(item.href)}>
+				<span class="ic">{item.icon}</span>
+				<span class="lb">{item.label}</span>
+			</a>
+		{/each}
+		<button class="logout" onclick={logout}><span class="ic">🚪</span><span class="lb">나가기</span></button>
+	</nav>
+	<main class="app-main">
+		{@render children()}
+	</main>
+{/if}
 
 <style>
 	.sidenav {

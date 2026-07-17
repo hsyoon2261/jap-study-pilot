@@ -42,6 +42,14 @@ export function recordAnswer(
 	correct: boolean,
 	ms: number | null
 ) {
+	// 로그인돼 있으면 서버(D1)에도 전송 (오프라인·비로그인이면 로컬만)
+	if (typeof fetch !== 'undefined') {
+		fetch('/api/answer', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ deck, item: itemId, mode, correct, ms })
+		}).catch(() => {});
+	}
 	// 로그 append
 	const logs = read<unknown[]>(LOG_KEY, []);
 	logs.push({ ts: nowIso(), deck, item: itemId, mode, correct, ms });
