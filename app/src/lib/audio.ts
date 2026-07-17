@@ -30,8 +30,17 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 	pick();
 }
 
-export async function speak(text: string) {
-	if (!text) return;
+// 현재 재생 중인 발음을 즉시 중단 (영상↔발음 조율용)
+export function stopSpeak() {
+	seq++;
+	if (current) { current.onended = null; current.pause(); current = null; }
+	if (typeof window !== 'undefined' && 'speechSynthesis' in window && speechSynthesis.speaking) speechSynthesis.cancel();
+}
+
+export async function speak(text: string, opts?: { slow?: boolean; onEnd?: () => void }) {
+	if (!text) { opts?.onEnd?.(); return; }
+	const slow = !!opts?.slow;
+	const onEnd = opts?.onEnd;
 	const my = ++seq;
 	await ensureManifest();
 	const file = manifest?.[text];
@@ -39,9 +48,11 @@ export async function speak(text: string) {
 		try {
 			if (!cache[text]) cache[text] = new Audio('/audio/' + file);
 			if (my !== seq) return;
-			if (current) current.pause();
+			if (current) { current.onended = null; current.pause(); }
 			current = cache[text];
 			current.currentTime = 0;
+			current.playbackRate = slow ? 0.75 : 1.0;
+			current.onended = () => { if (my === seq) { current = null; onEnd?.(); } };
 			await current.play();
 			return;
 		} catch {
@@ -54,7 +65,11 @@ export async function speak(text: string) {
 		const u = new SpeechSynthesisUtterance(text);
 		u.voice = jaVoice;
 		u.lang = jaVoice.lang;
-		u.rate = 0.75;
+		u.rate = slow ? 0.5 : 0.75;
+		u.onend = () => { if (my === seq) onEnd?.(); };
+		u.onerror = () => { if (my === seq) onEnd?.(); };
 		speechSynthesis.speak(u);
+	} else {
+		onEnd?.();
 	}
 }

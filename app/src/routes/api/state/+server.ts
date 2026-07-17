@@ -9,7 +9,7 @@ export async function GET({ platform, cookies }) {
 	const db = platform?.env?.DB;
 	if (!db) return json({ ok: false }, { status: 500 });
 	const srsRows: any = await db.prepare('SELECT deck,item_id,box,right_count,wrong_count,due FROM review_states WHERE user_id=?').bind(uid).all();
-	const byDay: any = await db.prepare("SELECT substr(ts,1,10) d, COUNT(*) n, SUM(correct) ok FROM answer_logs WHERE user_id=? GROUP BY d ORDER BY d").bind(uid).all();
+	const byDay: any = await db.prepare("SELECT substr(ts,1,10) d, COUNT(*) n, SUM(correct) ok, AVG(ms) avg FROM answer_logs WHERE user_id=? GROUP BY d ORDER BY d").bind(uid).all();
 	const tot: any = await db.prepare('SELECT COUNT(*) n, SUM(correct) ok FROM answer_logs WHERE user_id=?').bind(uid).first();
 	const srs: Record<string, any> = {};
 	for (const r of srsRows.results || []) srs[r.deck + ':' + r.item_id] = { box: r.box, right: r.right_count, wrong: r.wrong_count, due: r.due };

@@ -61,12 +61,16 @@
 		<p class="page-sub">불러오는 중…</p>
 	{:else if tab==='rules'}
 		<div class="info">
-			<h3>촉음 っ</h3>작은 っ는 한 박자 멈춤(받침 ㅅ/ㄱ). 있고 없고로 뜻이 갈린다.
-			<div class="pair">{#each [['きって','킷테·우표'],['きて','키테·와줘'],['やった','얏타·앗싸']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
-			<h3>장음</h3>같은 모음이 이어지면 두 박자로 길게.
-			<div class="pair">{#each [['おばさん','아주머니'],['おばあさん','할머니'],['コーヒー','커피']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
-			<h3>ん</h3>뒤 글자에 끌려 ㄴ/ㅁ/ㅇ 사이를 오간다.
-			<div class="pair">{#each [['せんぱい','셈파이'],['まんが','망가'],['みんな','민나']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
+			<h3>촉음 っ — 받침 같은 멈춤</h3>작은 っ는 한 박자 숨을 막는 소리(받침 ㅅ/ㄱ). 있고 없고로 뜻이 갈린다.
+			<div class="pair">{#each [['きって','킷테·우표'],['きて','키테·와줘'],['ちょっと','춋토·잠깐'],['やった','얏타·앗싸']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
+			<h3>장음 — 길게 늘이면 뜻이 바뀐다</h3>같은 모음이 이어지면 두 박자로 길게. 아주머니를 할머니로 만들지 말 것.
+			<div class="pair">{#each [['おばさん','아주머니'],['おばあさん','할머니'],['おじさん','아저씨'],['おじいさん','할아버지']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
+			<div class="lead">가타카나에서는 「ー」로 표기:</div>
+			<div class="pair">{#each [['コーヒー','커피'],['ケーキ','케이크']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
+			<h3>ん — 위치 따라 변하는 콧소리</h3>뒤 글자에 끌려 ㄴ/ㅁ/ㅇ 사이를 오간다.
+			<div class="pair">{#each [['せんぱい','셈파이·선배'],['まんが','망가·만화'],['みんな','민나·모두']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
+			<h3>요음 — 작은 ゃ ゅ ょ 조합</h3>い단 글자 + 작은 ゃ/ゅ/ょ를 한 박자로. 크기 차이로 뜻이 갈린다.
+			<div class="pair">{#each [['びょういん','뵤-인·병원'],['びよういん','비요-인·미용실'],['きょう','쿄-·오늘'],['しゃしん','샤신·사진']] as [w,m]}<button onclick={() => speak(w)}>{w} ({m}) 🔊</button>{/each}</div>
 		</div>
 	{:else}
 		{#each (tab==='yoon' ? [...rowsFor('히라가나',YOON), ...rowsFor('가타카나',YOON)] : rowsFor(tab==='hira'?'히라가나':'가타카나', BASIC)) as g (g.row)}
@@ -117,6 +121,7 @@
 	.cell .sub3 { display: block; font-size: 12px; color: var(--accent); margin-top: 2px; font-family: var(--jp); }
 	.info { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; font-size: 16px; line-height: 1.8; }
 	.info h3 { color: var(--accent); font-size: 17px; margin: 14px 0 4px; }
+	.info .lead { margin: 8px 0 2px; }
 	.pair { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; }
 	.pair button { font-family: var(--jp); font-size: 17px; background: var(--btn); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; color: var(--text); }
 	.kpanel { position: fixed; top: 0; right: 0; bottom: 0; width: 380px; max-width: 92vw; background: var(--card); border-left: 1px solid var(--border); padding: 22px; overflow-y: auto; z-index: 60; box-shadow: -14px 0 40px rgba(0,0,0,.5); }

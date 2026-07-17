@@ -9,10 +9,11 @@
 
 	let itemMap: Record<string, Item> = {};
 	let loaded = $state(false);
-	let srs = $state<Record<string, { box:number; right:number; wrong:number }>>({});
+	let srs = $state<Record<string, { box:number; right:number; wrong:number; due?:string }>>({});
 	let total = $state(0);
 	let correctN = $state(0);
-	let byDay = $state<{ d:string; n:number; ok:number; pct:number }[]>([]);
+	let byDay = $state<{ d:string; n:number; ok:number; pct:number; avg:number|null }[]>([]);
+	let archive = $state<{ id:string; title:string; doneAt:string|null }[]>([]);
 
 	onMount(async () => {
 		let ok = false;
@@ -20,7 +21,7 @@
 			const st = await fetch('/api/state').then(r => r.ok ? r.json() : null);
 			if (st?.ok) {
 				total = st.total; correctN = st.correct; srs = st.srs || {};
-				byDay = (st.byDay || []).map((r: any) => ({ d: r.d, n: r.n, ok: r.ok, pct: r.n ? Math.round(r.ok*100/r.n) : 0 }));
+				byDay = (st.byDay || []).map((r: any) => ({ d: r.d, n: r.n, ok: r.ok, pct: r.n ? Math.round(r.ok*100/r.n) : 0, avg: r.avg ?? null }));
 				ok = true;
 			}
 		} catch { /* 폴백 */ }
@@ -31,11 +32,24 @@
 			total = logs.length; correctN = logs.filter(l => l.correct).length; srs = getSrs();
 			const m: Record<string, {n:number; ok:number}> = {};
 			for (const l of logs) { const d = (l.ts||'').slice(0,10); if (!d) continue; (m[d] ||= {n:0,ok:0}); m[d].n++; if (l.correct) m[d].ok++; }
-			byDay = Object.entries(m).sort().map(([d,v]) => ({ d, n:v.n, ok:v.ok, pct: Math.round(v.ok*100/v.n) }));
+			byDay = Object.entries(m).sort().map(([d,v]) => ({ d, n:v.n, ok:v.ok, pct: Math.round(v.ok*100/v.n), avg: null }));
 		}
 		const decks = await Promise.all(['kana','hiragana-words','katakana-words'].map(id =>
 			fetch(`/content/${id}.json`).then(r => r.json()).catch(() => ({items:[]}))));
 		for (const d of decks) for (const it of (d.items||[])) itemMap[(d.id||'')+':'+it.id] = it;
+		// 완료한 세트 아카이브 (set_progress done + sets.json 제목)
+		try {
+			const [doneRes, setsRes] = await Promise.all([
+				fetch('/api/sets').then(r => r.ok ? r.json() : { sets: {} }),
+				fetch('/content/sets.json').then(r => r.json()).catch(() => [])
+			]);
+			const titles: Record<string,string> = {};
+			for (const s of (setsRes || [])) titles[s.id] = s.title;
+			archive = Object.entries(doneRes.sets || {})
+				.filter(([, v]: any) => v.done)
+				.map(([id, v]: any) => ({ id, title: titles[id] || id, doneAt: v.doneAt }))
+				.sort((a, b) => (b.doneAt || '').localeCompare(a.doneAt || ''));
+		} catch { /* */ }
 		loaded = true;
 	});
 
@@ -50,7 +64,7 @@
 	});
 	const weak = $derived.by(() =>
 		Object.entries(srs).filter(([,v]) => v.wrong>0).sort((a,b) => b[1].wrong-a[1].wrong).slice(0,15)
-			.map(([k,v]) => ({ it: itemMap[k], wrong: v.wrong, box: v.box }))
+			.map(([k,v]) => ({ it: itemMap[k], wrong: v.wrong, right: (v as any).right ?? 0, due: v.due ? v.due.slice(5,10).replace('-','/') : '—' }))
 	);
 </script>
 
@@ -70,18 +84,31 @@
 			<div class="c"><div class="n ac">{streak}</div><div class="k">연속 학습</div></div>
 		</div>
 
-		<div class="h2">날짜별 정답률</div>
+		<div class="h2">날짜별 기록 — 평균 속도가 줄면 자동화되는 중</div>
 		<div class="tbl">
-			{#each byDay as r (r.d)}<div class="tr"><span>{r.d}</span><span>{r.n}문제</span><span class="ac">{r.ok} ({r.pct}%)</span></div>{/each}
+			<div class="tr th"><span>날짜</span><span>문제</span><span class="ac">정답률</span><span class="sp">평균속도</span></div>
+			{#each byDay as r (r.d)}<div class="tr"><span>{r.d}</span><span>{r.n}문제</span><span class="ac">{r.ok} ({r.pct}%)</span><span class="sp">{r.avg ? (r.avg/1000).toFixed(1)+'초' : '—'}</span></div>{/each}
 		</div>
 
 		{#if weak.length}
-			<div class="h2">자주 틀린 것</div>
+			<div class="h2">약한 항목 — 틀린 순, SRS가 자동 우선 출제 중</div>
 			<div class="tbl">
+				<div class="tr th"><span>항목</span><span>맞힘/틀림</span><span class="sp">다음 복습</span></div>
 				{#each weak as w (w.it?.id || Math.random())}
-					<div class="tr"><span class="jp">{w.it?.front || '?'}</span><span>{w.it ? `${w.it.back}${w.it.ko?` (${w.it.ko})`:''}` : ''}</span><span class="no">오답 {w.wrong}</span></div>
+					<div class="tr"><span class="jp">{w.it?.front || '?'}<span class="wm">{w.it ? ` ${w.it.back}${w.it.ko?` (${w.it.ko})`:''}` : ''}</span></span><span><span class="good">{w.right}</span> / <span class="no">{w.wrong}</span></span><span class="sp">{w.due}</span></div>
 				{/each}
 			</div>
+		{/if}
+
+		<div class="h2">완료한 세트 아카이브</div>
+		{#if archive.length}
+			<div class="tbl">
+				{#each archive as a (a.id)}
+					<div class="tr"><span class="atitle">✅ {a.title}</span><span class="sp">{a.doneAt ? a.doneAt.slice(5,16).replace('T',' ') : ''}</span></div>
+				{/each}
+			</div>
+		{:else}
+			<p class="page-sub">아직 완료한 세트가 없어. 홈에서 세트를 완료 버튼으로 마치면 여기 쌓인다.</p>
 		{/if}
 	{/if}
 </div>
@@ -95,9 +122,15 @@
 	.c .k { color: var(--sub); font-size: 13px; margin-top: 2px; }
 	.h2 { font-size: 15px; color: var(--accent); font-weight: 700; margin: 26px 0 10px; }
 	.tbl { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-	.tr { display: flex; justify-content: space-between; gap: 10px; padding: 11px 15px; border-top: 1px solid var(--border); font-size: 14.5px; }
+	.tr { display: flex; justify-content: space-between; gap: 10px; padding: 11px 15px; border-top: 1px solid var(--border); font-size: 14.5px; align-items: baseline; }
 	.tr:first-child { border-top: none; }
-	.tr .jp { font-family: var(--jp); font-size: 19px; }
-	.tr .ac { color: var(--ok); font-variant-numeric: tabular-nums; }
+	.tr.th { color: var(--sub); font-size: 12px; font-weight: 700; }
+	.tr > span { flex: 1; }
+	.tr .jp { font-family: var(--jp); font-size: 19px; flex: 1.4; }
+	.tr .jp .wm { font-family: var(--ko); font-size: 13.5px; color: var(--sub); }
+	.tr .ac { color: var(--ok); font-variant-numeric: tabular-nums; text-align: center; }
+	.tr .sp { text-align: right; color: var(--sub); font-variant-numeric: tabular-nums; flex: 0 0 auto; min-width: 64px; }
 	.tr .no { color: var(--accent); }
+	.tr .good { color: var(--ok); }
+	.tr .atitle { flex: 1; word-break: keep-all; }
 </style>
