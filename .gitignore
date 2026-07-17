@@ -23,3 +23,7 @@ data/audio/kana-slow/
 Thumbs.db
 *.log
 scratchpad/
+
+# 배포 관리용 전용 크롬 (로그인 프로필·스냅)
+tools/webkit/chrome-profile/
+tools/webkit/snaps/
