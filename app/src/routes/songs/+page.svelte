@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/state';
 	import { speak } from '$lib/audio';
 
 	type Note = { t?: string; n?: string; h?: string; d?: string; cont?: boolean };
@@ -31,7 +32,8 @@
 			// 6초 안에 API가 안 뜨면(광고차단·네트워크) 폴백 안내
 			setTimeout(() => { if (!ytReady) apiFailed = true; }, 6000);
 		} else { ytReady = true; }
-		const first = songs.find(s => s.lyric) || songs[0];
+		const wantId = page.url.searchParams.get('id');
+		const first = (wantId && songs.find(s => s.id === wantId)) || songs.find(s => s.lyric) || songs[0];
 		if (first) select(first);
 		tick = setInterval(() => {
 			if (!player?.getCurrentTime || !cur?.lineTimes) return;

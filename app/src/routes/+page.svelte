@@ -18,12 +18,16 @@
 	let total = $state(0);
 	let loaded = $state(false);
 	let busy = $state<string | null>(null);
+	let latestSheet = $state<{ day: number; date: string; title: string } | null>(null);
+	let todayReqs = $state<{ id: string; title: string }[]>([]);
 
 	async function load() {
-		const [setsRes, doneRes, stateRes, ...deckRes] = await Promise.all([
+		const [setsRes, doneRes, stateRes, sheetsRes, reqRes, ...deckRes] = await Promise.all([
 			fetch('/content/sets.json').then((r) => r.json()).catch(() => []),
 			fetch('/api/sets').then((r) => r.json()).catch(() => ({ sets: {} })),
 			fetch('/api/state').then((r) => r.json()).catch(() => ({})),
+			fetch('/content/sheets.json').then((r) => r.json()).catch(() => []),
+			fetch('/content/custom.json').then((r) => r.json()).catch(() => []),
 			...DECK_IDS.map((id) =>
 				fetch(`/content/${id}.json`).then((r) => r.json()).then((d) => ({ id, title: d.title, description: d.description, count: (d.items || []).length })).catch(() => null)
 			)
@@ -34,6 +38,9 @@
 		byDay = stateRes.byDay || [];
 		total = stateRes.total || 0;
 		decks = deckRes.filter((m): m is DeckMeta => m !== null);
+		latestSheet = sheetsRes.length ? sheetsRes[0] : null;
+		const today = todayKst();
+		todayReqs = (reqRes || []).filter((r: any) => r.date === today).map((r: any) => ({ id: r.id, title: r.title }));
 		loaded = true;
 	}
 
@@ -97,6 +104,13 @@
 	{#if !loaded}
 		<p class="page-sub" style="margin-top:30px">불러오는 중…</p>
 	{:else}
+		<!-- 오늘의 학습지 -->
+		{#if latestSheet}
+			<a class="sheet-link" href={`/sheet?day=${latestSheet.day}`}>
+				📝 오늘의 학습지 열기 <span class="sl-sub">Day {latestSheet.day} · {latestSheet.date}</span>
+			</a>
+		{/if}
+
 		<!-- 오늘의 세트 -->
 		{#if sets.length}
 			<section class="block">
@@ -158,6 +172,20 @@
 			</div>
 		</section>
 
+		<!-- 오늘의 요청 -->
+		{#if todayReqs.length}
+			<section class="block">
+				<div class="block-h">오늘의 요청 &nbsp;<a class="more" href="/custom">전체 요청 보기 →</a></div>
+				<div class="setlist">
+					{#each todayReqs as r (r.id)}
+						<a class="set-row reqrow" href={`/custom?id=${r.id}`}>
+							<div class="set-t">⭐ {r.title}</div>
+						</a>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
 		<!-- 자유 연습 덱 -->
 		<section class="block">
 			<div class="block-h">훈련 덱 (자유 연습)</div>
@@ -175,6 +203,10 @@
 </div>
 
 <style>
+	.sheet-link { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding: 15px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: 16px; font-weight: 700; }
+	.sheet-link:hover { border-color: var(--accent); }
+	.sheet-link .sl-sub { color: var(--sub); font-size: 13px; font-weight: 400; }
+	.reqrow { text-decoration: none; }
 	.block { margin-top: 26px; }
 	.block-h { font-size: 14px; font-weight: 700; color: var(--sub); letter-spacing: 0.02em; margin-bottom: 12px; display: flex; align-items: baseline; }
 	.more { font-size: 12.5px; color: var(--accent); font-weight: 600; }

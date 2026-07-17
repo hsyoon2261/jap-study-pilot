@@ -1,0 +1,9 @@
+[
+ {
+  "id": "r001",
+  "day": 2,
+  "date": "2026-07-17",
+  "title": "つき vs すき vs スキー — 소리·글자 구분 총정리",
+  "html": "<div class='note'>구분 단서 세 가지: ① <b>つ</b>는 ㅌ+ㅅ가 동시에 터지는 소리 (시작에 '칫'하는 순간 막힘), <b>す</b>는 부드러운 ㅅ ② 악센트가 반대 — すき는 <b>스</b>↘키 (앞이 높음), つき는 츠↗<b>키</b> (뒤가 높음) ③ スキー는 '키'가 두 박자. 번갈아 누르면서 차이가 들릴 때까지.</div><div class='btns'><button class='say' data-say='つき'><span class='jp'>つき</span><span class='lb'>츠키 · 달 月</span><span class='sub2'>뒤가 올라감</span></button><button class='say' data-say='すき'><span class='jp'>すき</span><span class='lb'>스키 · 좋아함 好き</span><span class='sub2'>앞이 높음</span></button><button class='say' data-say='スキー'><span class='jp'>スキー</span><span class='lb'>스키- · 스키(운동)</span><span class='sub2'>키를 길게</span></button></div><div class='note' style='margin-top:12px'>문장으로 들어보기:</div><div class='btns'><button class='say' data-say='つきがきれい'><span class='jp'>つきが きれい</span><span class='lb'>달이 예쁘다</span></button><button class='say' data-say='すしがすき'><span class='jp'>すしが すき</span><span class='lb'>초밥을 좋아해</span></button></div><div class='note' style='margin-top:16px'><b>글자 하나씩 분리해서 비교</b> — つ 시작의 순간적인 'ㅌ' 파열을 잡는 연습. 모양: す=가운데 매듭, つ=파도 한 획(쓰나미의 つ).</div><div class='btns'><button class='say' data-say='す'><span class='jp'>す</span><span class='lb'>스 — 부드러운 ㅅ</span></button><button class='say' data-say='つ'><span class='jp'>つ</span><span class='lb'>츠 — ㅌ+ㅅ 파찰음</span></button></div>"
+ }
+]
