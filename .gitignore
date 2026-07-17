@@ -1,0 +1,25 @@
+# === 데스크탑 전용: 배포에 절대 올리지 않음 ===
+# 음성 엔진 (1.4GB, 저작용) — 배포엔 구운 오디오만 씀
+tools/voicevox/
+tools/aivisspeech/
+tools/voicevox-dl/
+tools/_vv_trim_backup/
+
+# === 프론트(app) 빌드 산출물 ===
+app/node_modules/
+app/.svelte-kit/
+app/build/
+app/.wrangler/
+app/.vercel/
+
+# === 재생성 가능한 캐시 ===
+data/tts-cache/
+data/audio/kana-slow/
+**/__pycache__/
+*.pyc
+
+# === 로컬/임시 ===
+.DS_Store
+Thumbs.db
+*.log
+scratchpad/

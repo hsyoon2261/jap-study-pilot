@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>노래로 공부</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --ok: #57c78a; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 1560px; } /* 화면의 ~80%만 사용, 중앙 정렬 */
+  h1 { font-size: 27px; margin-bottom: 6px; }
+  .subtitle { color: var(--sub); font-size: 16px; margin-bottom: 18px; word-break: keep-all; }
+  /* 본문 그리드: 곡 목록 | 본문 | (상세 열렸을 때) 상세 패널 */
+  /* 본문(가사) 폭을 900px로 캡 — 패널이 열려도 본문 바로 옆에 붙어 시선 이동 최소화 */
+  .layout { position: relative; display: grid; grid-template-columns: 200px minmax(0, 900px); gap: 12px; align-items: start; justify-content: center; }
+  .layout.panel-open { grid-template-columns: 200px minmax(0, 860px) 420px; }
+  .songs-col { position: sticky; top: 12px; }
+  .main-col { min-width: 0; }
+  .song-pick {
+    display: block; width: 100%; text-align: left; padding: 13px 15px; margin-bottom: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); cursor: pointer; font-size: 15px; line-height: 1.5;
+  }
+  .song-pick:hover { border-color: var(--accent); }
+  .song-pick.on { border-color: var(--accent); background: var(--btn); }
+  .song-pick .sp-t { font-weight: 700; font-size: 17px; display: block; word-break: keep-all; }
+  .song-pick .sp-a { color: var(--sub); font-size: 13px; }
+  /* 상세 패널: 더블클릭한 행의 옆 높이에 붙는다 (행 바뀌면 따라 이동) */
+  #detailPanel {
+    display: none; position: absolute; top: 0; right: 0; width: 420px;
+    max-height: 84vh; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; transition: top .25s ease;
+  }
+  #detailPanel.open { display: block; }
+  #dpClose { position: absolute; top: 14px; right: 14px; background: var(--btn); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 11px; cursor: pointer; font-size: 14px; }
+  .dp-jp { font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; font-size: 26px; line-height: 1.95; margin: 8px 24px 4px 0; word-break: normal; overflow-wrap: break-word; }
+  .dp-jp ruby { white-space: nowrap; ruby-align: center; }
+  .dp-jp ruby rt { font-size: 12px; color: var(--accent); opacity: .95; font-family: "Segoe UI", sans-serif; text-align: center; }
+  .dp-rom { color: var(--accent); font-size: 15px; margin-bottom: 4px; }
+  .dp-tr { font-size: 18px; margin-bottom: 12px; }
+  .dp-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .dp-btn { padding: 11px 6px; border-radius: 9px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; font-size: 14.5px; font-weight: 600; text-align: center; white-space: nowrap; }
+  .dp-btn:hover { border-color: var(--accent); }
+  .dp-btn.on { background: var(--ok); border-color: var(--ok); color: #14161b; }
+  .dp-body { font-size: 16.5px; line-height: 1.8; word-break: keep-all; }
+  .dp-body table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .dp-body th, .dp-body td { padding: 8px 9px; border-bottom: 1px solid var(--border); font-size: 15.5px; text-align: left; }
+  .dp-body th { color: var(--sub); font-size: 13px; }
+  .dp-body .jp { font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 19px; }
+  .dp-body .tr { margin: 10px 0; }
+  .dp-body b { color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+  .player-box { position: relative; width: 100%; max-width: 900px; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; margin: 0 0 12px; }
+  .player-box iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .ctl {
+    padding: 11px 16px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--btn); color: var(--text); cursor: pointer; font-size: 15px; font-weight: 600;
+  }
+  .ctl:hover { border-color: var(--accent); }
+  .ctl.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctl.on { background: var(--ok); border-color: var(--ok); color: #14161b; }
+  .loop-label { font-size: 15px; color: var(--sub); margin-left: auto; }
+  .song-head { font-size: 19px; font-weight: 700; }
+  .song-meta { font-size: 14px; color: var(--sub); margin-top: 2px; }
+  .note { color: var(--sub); font-size: 14px; margin-top: 10px; line-height: 1.7; word-break: keep-all; }
+  .analysis { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; font-size: 16px; line-height: 1.8; word-break: keep-all; }
+  .analysis table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  .analysis th, .analysis td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-size: 15px; text-align: left; }
+  .analysis th { color: var(--sub); font-size: 13px; }
+  .analysis .jp { font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; font-size: 18px; }
+  /* 줄별 가사 해설 */
+  .lyric-box { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .lyr-line { margin-bottom: 12px; padding: 7px 11px; border-radius: 10px; border-left: 3px solid transparent; }
+  .lyr-line.now { background: var(--btn); border-left-color: var(--accent); }
+  .lyr-jp { font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; font-size: 31px; line-height: 1.95; user-select: none; }
+  .lyr-line:hover { background: rgba(255,255,255,.045); } /* 은은한 배경만 — 글자 전체가 빨개지는 건 과함 */
+  .lyr-jp ruby { white-space: nowrap; ruby-align: center; } /* 단어는 통째로 줄바꿈, 로마자는 단어 중앙 */
+  .cont-mark { color: var(--sub); opacity: .55; font-size: 60%; vertical-align: middle; }
+  .lyr-jp ruby rt { font-size: 13px; color: var(--accent); opacity: .95; font-family: "Segoe UI", sans-serif; letter-spacing: 0; text-align: center; }
+  .lyr-read { color: var(--accent); font-size: 15px; margin-top: 0; line-height: 1.4; opacity: .95; }
+  .lyr-tr { font-size: 18px; margin-top: 4px; color: var(--text); opacity: .9; }
+  .lyr-note { color: var(--sub); font-size: 15.5px; margin-top: 4px; line-height: 1.65; word-break: keep-all; }
+  .tts-mini { background: none; border: none; font-size: 14px; cursor: pointer; opacity: .45; vertical-align: middle; }
+  .tts-mini:hover { opacity: 1; }
+  .lyric-form textarea {
+    width: 100%; min-height: 110px; padding: 12px; margin-top: 8px;
+    font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; font-size: 18px;
+    background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 10px; resize: vertical;
+  }
+  .lyric-form button { margin-top: 8px; padding: 12px 18px; font-size: 15px; font-weight: 700; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+  .song-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 7px; background: var(--btn); cursor: pointer; }
+  .song-item:hover, .song-item.on { border-color: var(--accent); }
+  .song-item .t { font-weight: 700; font-size: 16px; }
+  .song-item .m { color: var(--sub); font-size: 13px; margin-left: auto; }
+  .empty { color: var(--sub); font-size: 15px; line-height: 1.8; word-break: keep-all; }
+
+  /* ── 반응형 ── */
+  @media (min-width: 1201px) {
+    /* 레이아웃 폭을 실제 컬럼 폭에 맞춰야 패널(right:0)이 본문 바로 옆에 정확히 붙는다 */
+    .layout { width: fit-content; margin: 0 auto; }
+  }
+  @media (max-width: 1200px) {
+    /* 노트북: 상세 패널은 컬럼 대신 오른쪽 오버레이로 */
+    .layout.panel-open { grid-template-columns: 200px minmax(0, 1fr); }
+    #detailPanel.open {
+      position: fixed !important; top: 0 !important; right: 0; bottom: 0; width: min(430px, 92vw);
+      max-height: none; border-radius: 0; z-index: 70;
+      box-shadow: -10px 0 32px rgba(0,0,0,.55);
+    }
+  }
+  @media (max-width: 760px) {
+    /* 모바일: 곡 목록을 상단 가로 스크롤로, 본문 1열 */
+    .layout, .layout.panel-open { grid-template-columns: minmax(0, 1fr); }
+    .songs-col { position: static; min-width: 0; }
+    #list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+    .song-pick { min-width: 160px; flex-shrink: 0; margin-bottom: 0; }
+    .lyr-jp { font-size: 25px; }
+    .lyr-tr { font-size: 16px; }
+    .lyr-line { padding: 6px 8px; }
+    #detailPanel.open { width: 100vw; }
+  }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>노래로 공부 🎵</h1>
+  <div class="subtitle">클릭 = 그 소절부터 재생 · 더블클릭 = 오른쪽에 상세 해설 열기 (반복재생 포함). 곡 추가는 채팅으로 "○○ 넣어줘".</div>
+
+  <div class="layout">
+    <div class="songs-col">
+      <div class="section-label">곡 목록</div>
+      <div id="list" class="empty">불러오는 중...</div>
+    </div>
+    <div class="main-col">
+  <div class="card" id="playerCard" style="display:none">
+    <div class="song-head" id="pTitle"></div>
+    <div class="song-meta" id="pMeta"></div>
+    <div class="player-box" style="margin-top:12px"><div id="yt"></div></div>
+    <div class="controls" id="sectionBar" style="margin-bottom:8px"></div>
+    <div class="controls" id="extractRow" style="margin-top:4px">
+      <button class="ctl" id="extractBtn" style="font-size:13px;padding:8px 12px">🎙 싱크 데이터 만들기 (음성→텍스트)</button>
+      <span class="loop-label" id="extractStatus"></span>
+    </div>
+    <div class="note" id="studyHint" style="display:none"><b>클릭</b> = 그 소절부터 계속 재생 · <b>더블클릭</b> = 오른쪽 상세 해설 + 그 소절 듣기</div>
+    <div id="pGuide"></div>
+    <div id="pAnalysis"></div>
+  </div>
+    </div><!-- /main-col -->
+
+<div id="detailPanel">
+  <button id="dpClose">✕ 닫기</button>
+  <div class="section-label">소절 상세</div>
+  <div class="dp-jp" id="dpJp"></div>
+  <div class="dp-rom" id="dpRom"></div>
+  <div class="dp-tr" id="dpTr"></div>
+  <div class="dp-btns">
+    <button class="dp-btn" id="dpLoop">🔁 이 소절 반복</button>
+    <button class="dp-btn" id="dpOnce">▶ 한 번 듣기</button>
+    <button class="dp-btn" id="dpSlow">🗣 느리게 발음</button>
+  </div>
+  <div class="dp-body" id="dpBody"></div>
+</div><!-- /detailPanel -->
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<script>
+"use strict";
+let songs = [], current = null, player = null, ytReady = false;
+let activeSection = null;
+let vocalStopAt = null; // 더블클릭(한 소절만) 재생 중이면 그 끝 시각
+let lineTimeMap = [];   // 싱크 매칭된 가사 줄 [{el, start, end}]
+let nowLineIdx = -1;    // 현재 하이라이트 중인 줄
+
+const $ = id => document.getElementById(id);
+const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+// 후리가나로 읽기 확정: 君（きみ）→きみ. TTS가 한자를 엉뚱하게 읽는 것(君=군) 방지.
+const readingOf = s => (s || "")
+  .replace(/[一-龥々〆ヶ]+（([^（）]+)）/g, "$1")  // 한자（요미） → 요미
+  .replace(/（[^）]*）/g, "");                     // 남은 후리가나 괄호 제거
+
+// 유튜브 플레이어 API
+const tag = document.createElement("script");
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+window.onYouTubeIframeAPIReady = () => { ytReady = true; if (current) mountPlayer(current); };
+
+function mountPlayer(s) {
+  if (!ytReady) return;
+  if (player) { player.cueVideoById({ videoId: s.videoId }); return; }
+  player = new YT.Player("yt", {
+    videoId: s.videoId,
+    playerVars: { rel: 0 },
+  });
+}
+
+// ── 발음 듣기 (TTS) ──
+// 유튜브와 동시 재생 금지: 발음이 나가는 동안 영상을 멈추고, 끝나면 원래 재생 중이었을 때만 이어서 재생.
+const ttsCache = {};
+(window.__ttsCaches = window.__ttsCaches || []).push(ttsCache); // 설정 서랍이 성우 변경 시 비움
+let ttsAudio = null, ttsResume = false, ttsSeq = 0;
+function stopTts() {
+  if (ttsAudio) { ttsAudio.onended = ttsAudio.onerror = null; ttsAudio.pause(); ttsAudio = null; }
+  if (window.speechSynthesis && speechSynthesis.speaking) speechSynthesis.cancel();
+}
+function ttsDone() {
+  if (ttsResume && player && player.playVideo) player.playVideo();
+  ttsResume = false; ttsAudio = null;
+}
+async function speak(text, slow) {
+  if (!text) return;
+  const seq = ++ttsSeq; // 연타 시 늦게 도착한 소리는 버린다
+  const wasPlaying = !!(player && player.getPlayerState && player.getPlayerState() === 1);
+  stopTts();
+  ttsResume = wasPlaying || ttsResume; // 연타해도 원래 틀어져 있었으면 끝나고 이어재생
+  if (wasPlaying) player.pauseVideo();
+  const key = (slow ? "S:" : "N:") + text;
+  try {
+    if (!ttsCache[key]) {
+      // 노래 가사 낭독은 1.0(보통), "느리게 발음" 버튼만 0.8 — 학습자 요청 2026-07-18
+      const spd = slow ? 0.8 : 1.0;
+      const res = await fetch("/api/tts?text=" + encodeURIComponent(text) + "&speed=" + spd + "&_v=" + (localStorage.getItem("ttsVer") || "0"));
+      if (!res.ok) throw new Error();
+      ttsCache[key] = URL.createObjectURL(await res.blob());
+    }
+    if (seq !== ttsSeq) return; // 그 사이 다른 동작이 시작됐으면 이 소리는 버림
+    ttsAudio = new Audio(ttsCache[key]);
+    ttsAudio.onended = ttsAudio.onerror = ttsDone;
+    await ttsAudio.play();
+  } catch {
+    try { // 서버 음성 실패 → 브라우저 내장 음성 폴백
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "ja-JP"; u.rate = slow ? 0.55 : 0.9;
+      u.onend = u.onerror = ttsDone;
+      speechSynthesis.speak(u);
+    } catch { ttsDone(); }
+  }
+}
+
+const HIGHLIGHT_LAG = 0.6;      // 자막 큐가 보컬보다 앞서는 평균 리드 보정(초)
+let manualHiIdx = -1, manualHiUntil = 0; // 클릭한 행 즉시 하이라이트 고정
+let lastUserScroll = 0;         // 손 스크롤 직후엔 자동 스크롤 정지
+window.addEventListener("wheel", () => { lastUserScroll = Date.now(); }, { passive: true });
+window.addEventListener("touchmove", () => { lastUserScroll = Date.now(); }, { passive: true });
+
+setInterval(() => {
+  if (!player || !player.getCurrentTime) return;
+  try {
+    const t = player.getCurrentTime();
+    // 지금 부르는 줄 하이라이트 (보컬 리드 보정 적용)
+    if (lineTimeMap.length) {
+      let idx = -1;
+      const tt = t - HIGHLIGHT_LAG;
+      for (let k = 0; k < lineTimeMap.length; k++) {
+        if (tt >= lineTimeMap[k].start - 0.2 && tt < lineTimeMap[k].end + 0.3) { idx = k; break; }
+      }
+      if (Date.now() < manualHiUntil && manualHiIdx >= 0) idx = manualHiIdx; // 방금 클릭한 행 우선
+      if (idx !== nowLineIdx) {
+        nowLineIdx = idx;
+        document.querySelectorAll(".lyr-line.now").forEach(e => e.classList.remove("now"));
+        if (idx >= 0) {
+          const lineEl = lineTimeMap[idx].el.closest(".lyr-line");
+          if (lineEl) {
+            lineEl.classList.add("now");
+            if (Date.now() - lastUserScroll > 4000) lineEl.scrollIntoView({ block: "center", behavior: "smooth" });
+          }
+        }
+      }
+    }
+    // 상세 패널의 소절 반복 모드
+    if (rowLoopOn && t >= rowLoopEnd) { player.seekTo(Math.max(0, rowLoopStart - 0.2), true); return; }
+    // 한 소절만 듣기 모드: 소절 끝나면 정지. 그 외엔 아무 개입 없음.
+    if (vocalStopAt !== null && t >= vocalStopAt) { player.pauseVideo(); vocalStopAt = null; }
+  } catch { /* 플레이어 준비 전 */ }
+}, 250);
+
+// ── 우측 상세 패널 ──
+let detailRow = null, rowLoopOn = false, rowLoopStart = 0, rowLoopEnd = 0, detailPlain = "";
+function toggleDetail(li, t) {
+  if (detailRow === li && $("detailPanel").classList.contains("open")) { closeDetail(); return; }
+  detailRow = li;
+  const lines = current.lyric.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  const note = (current.lineNotes || [])[li] || {};
+  detailPlain = readingOf(lines[li] || "");
+  $("dpJp").innerHTML = note.h || (lines[li] || "");
+  $("dpRom").textContent = note.h ? "" : (note.r || ""); // 루비가 있으면 별도 로마자 줄 불필요
+  $("dpTr").textContent = note.t || "";
+  $("dpBody").innerHTML = note.d
+    || (note.n ? `<div class='tr'>${note.n}</div>` : "")
+    + "<div class='tr' style='color:var(--sub)'>더 깊은 해설이 필요하면 채팅에서 \"이 소절 자세히\"라고 해줘.</div>";
+  rowLoopStart = t.start; rowLoopEnd = t.end;
+  stopRowLoop();
+  applyManualHighlight(li); // 열어본 행 즉시 하이라이트 고정
+  manualHiUntil = Date.now() + Math.min(9000, (t.end - t.start + 1.5) * 1000);
+  $("detailPanel").classList.add("open");
+  document.querySelector(".layout").classList.add("panel-open");
+  // 패널 위치: 더블클릭한 행 옆이 1순위, 단 패널 전체가 지금 화면 안에 보이는 게 절대 조건
+  {
+    const panel = $("detailPanel");
+    if (window.innerWidth <= 1200) {
+      panel.style.top = "";
+    } else {
+      const layout = document.querySelector(".layout");
+      const entry = lineTimeMap[li];
+      const rowEl = entry && entry.el.closest(".lyr-line");
+      if (rowEl && layout) {
+        const panelH = panel.offsetHeight;
+        let vpTop = rowEl.getBoundingClientRect().top - 6;              // 행 옆 높이
+        vpTop = Math.min(vpTop, window.innerHeight - panelH - 14);      // 아래로 잘리면 위로 당김
+        vpTop = Math.max(vpTop, 14);                                    // 위로도 잘리지 않게
+        const top = vpTop - layout.getBoundingClientRect().top;
+        const maxTop = Math.max(0, layout.offsetHeight - panelH - 10);  // 문서 범위 안전선
+        panel.style.top = Math.max(0, Math.min(top, maxTop)) + "px";
+      }
+    }
+  }
+  playVocal(t.start, t.end); // 열리면서 한 번 들려줌
+}
+function closeDetail() {
+  $("detailPanel").classList.remove("open");
+  document.querySelector(".layout").classList.remove("panel-open");
+  detailRow = null;
+  rowLoopOn = false;
+  $("dpLoop").classList.remove("on");
+}
+$("dpClose").onclick = closeDetail;
+$("dpLoop").onclick = () => {
+  rowLoopOn = !rowLoopOn;
+  $("dpLoop").classList.toggle("on", rowLoopOn);
+  $("dpLoop").textContent = rowLoopOn ? "⏹ 반복 끄기" : "🔁 이 소절 반복";
+  if (rowLoopOn) {
+    stopTts(); ttsResume = false; // 반복 재생 시작 = 발음 중단
+    vocalStopAt = null;
+    manualHiIdx = detailRow; manualHiUntil = Date.now() + 3000;
+    if (player && player.seekTo) { player.seekTo(Math.max(0, rowLoopStart - 0.2), true); player.playVideo && player.playVideo(); }
+  } else if (player && player.pauseVideo) player.pauseVideo();
+};
+$("dpOnce").onclick = () => { rowLoopOn = false; $("dpLoop").classList.remove("on"); $("dpLoop").textContent = "🔁 이 소절 반복"; playVocal(rowLoopStart, rowLoopEnd); };
+$("dpSlow").onclick = () => { if (detailPlain) speak(detailPlain, true); };
+
+// 소절 ↔ 음성인식 시간표 매칭 (문자 2글자 겹침 비율로 유사도 계산)
+function bigrams(s) {
+  const n = s.replace(/[\s、。！？!?,.「」『』()（）]/g, "");
+  const out = new Set();
+  for (let i = 0; i < n.length - 1; i++) out.add(n.slice(i, i + 2));
+  return out;
+}
+function similarity(a, b) {
+  const A = bigrams(a), B = bigrams(b);
+  if (!A.size || !B.size) return 0;
+  let hit = 0;
+  for (const g of A) if (B.has(g)) hit++;
+  return (2 * hit) / (A.size + B.size);
+}
+function stopRowLoop() {
+  rowLoopOn = false;
+  const b = document.getElementById("dpLoop");
+  if (b) { b.classList.remove("on"); b.textContent = "🔁 이 소절 반복"; }
+}
+
+function applyManualHighlight(li) {
+  // 클릭 즉시 반영 (타이머 안 기다림)
+  manualHiIdx = li;
+  manualHiUntil = Date.now() + 1800;
+  nowLineIdx = li;
+  document.querySelectorAll(".lyr-line.now").forEach(e => e.classList.remove("now"));
+  const entry = lineTimeMap[li];
+  if (entry) {
+    const lineEl = entry.el.closest(".lyr-line");
+    if (lineEl) lineEl.classList.add("now");
+  }
+}
+
+function seekPlay(start, li) {
+  // 클릭: 그 지점으로 이동해서 그냥 계속 재생 (이후 아무 개입 없음)
+  if (!player || !player.seekTo) return;
+  stopTts(); ttsResume = false; // 영상을 직접 트는 순간 발음 재생은 중단
+  vocalStopAt = null;
+  stopRowLoop(); // 반복 중 다른 행을 클릭하면 반복은 해제 (안 그러면 계속 끌려감)
+  if (li != null) applyManualHighlight(li); // 클릭한 행 즉시 하이라이트
+  player.seekTo(Math.max(0, start - 0.2), true);
+  if (player.playVideo) player.playVideo();
+}
+
+function playVocal(start, end) {
+  // 더블클릭: 딱 이 소절만 듣고 정지
+  if (!player || !player.seekTo) return;
+  stopTts(); ttsResume = false; // 발음 재생 중이면 끊고 보컬로
+  vocalStopAt = end + 0.3;
+  player.seekTo(Math.max(0, start - 0.2), true);
+  if (player.playVideo) player.playVideo();
+}
+
+function lyricBlock(s) {
+  // 학습자가 등록한 가사 → 줄별로 표시, 튜터의 줄별 해설(lineNotes)이 있으면 밑에 붙임
+  if (!s.lyric) {
+    return `<div class="lyric-box lyric-form">
+      <div class="note"><b>가사 줄별 해석 만들기</b> — 가사 검색("곡명 + 가사")에서 지금 반복 중인 구간의 가사를 복사해서 아래에 붙여넣고 등록. 그 다음 채팅에 "달아줘"라고 하면 각 줄에 읽는 법·해석·문법이 붙는다.</div>
+      <textarea id="lyricInput" placeholder="여기에 가사 붙여넣기 (줄바꿈 유지)"></textarea>
+      <button id="lyricSave">가사 등록</button>
+      <button id="lyricFromOcr" style="margin-left:8px; background:var(--btn); color:var(--text); border:1px solid var(--border)">OCR 결과 불러오기</button>
+    </div>`;
+  }
+  const notes = s.lineNotes || [];
+  const lines = s.lyric.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const rows = lines.map((l, i) => {
+    const n = notes[i];
+    const jp = (n && n.h) ? n.h : l; // 루비(단어별 로마자) 마크업이 있으면 그걸로
+    const cont = (n && n.cont) ? ` <span class="cont-mark" title="문장이 다음 행으로 이어짐">→</span>` : "";
+    return `<div class="lyr-line"><div class="lyr-jp" data-say="${l.replace(/"/g, "&quot;")}" style="cursor:pointer" title="클릭하면 발음 재생">${jp}${cont}</div>` +
+      (n ? `${n.t ? `<div class="lyr-tr">${n.t}</div>` : ""}
+            ${n.n ? `<div class="lyr-note">${n.n}</div>` : ""}`
+         : `<div class="lyr-note">⏳ 해설 대기</div>`) + `</div>`;
+  }).join("");
+  return `<div class="lyric-box">${rows}
+    <div class="note">${notes.length ? "" : "채팅에 \"달아줘\"라고 하면 각 줄에 읽는 법·해석이 붙는다. "}가사를 바꾸려면 <a href="#" id="lyricRedo" style="color:var(--accent)">다시 등록</a></div></div>`;
+}
+
+function selectSection(i, seek) {
+  const sec = current.sections[i];
+  activeSection = i;
+  $("pGuide").innerHTML = `<div class="analysis"><div style="font-weight:700;font-size:17px;margin-bottom:8px">${sec.label} 해석 가이드</div>${sec.guide || "<div class='tr'>가이드 준비 중</div>"}</div>`;
+  document.querySelectorAll("#sectionBar .ctl").forEach((b, bi) =>
+    b.classList.toggle("on", bi === i));
+  if (seek) seekPlay(sec.start);
+  loadSectionText(sec); // 추출된 텍스트가 있으면 구간에 맞춰 표시
+}
+
+async function loadSectionText(sec) {
+  if (!current || !current.videoId) return;
+  const r = await fetch(`/api/video-text?videoId=${current.videoId}&start=${sec.start}&end=${sec.end}`).catch(() => null);
+  if (!r || !r.ok) return;
+  const d = await r.json();
+  if (!d.segments || !d.segments.length) return;
+  $("pGuide").insertAdjacentHTML("beforeend",
+    `<div class="analysis"><div style="font-weight:700;margin-bottom:8px">이 구간에서 들리는 텍스트
+       <span style="color:var(--sub);font-weight:400;font-size:13px">(앱 자동 추출 — 음악이라 오인식 있을 수 있음)</span></div>` +
+    d.segments.map(s =>
+      `<div class="lyr-line"><span style="color:var(--sub);font-size:13px">${fmt(s.start)}</span>
+       <span class="lyr-jp" style="font-size:21px"> ${s.text}</span></div>`).join("") +
+    `</div>`);
+}
+
+$("extractBtn").onclick = async () => {
+  if (!current) return;
+  $("extractStatus").textContent = "추출 요청 중...";
+  const res = await fetch("/api/video-text/extract", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://www.youtube.com/watch?v=" + current.videoId }),
+  }).catch(() => null);
+  if (!res || !res.ok) { $("extractStatus").textContent = "요청 실패"; return; }
+  pollExtract();
+};
+
+async function pollExtract() {
+  const st = await fetch("/api/video-text/status?videoId=" + current.videoId)
+    .then(r => r.json()).catch(() => ({ status: "error: 연결 실패" }));
+  $("extractStatus").textContent = st.status === "done" ? "추출 완료 ✓" : st.status;
+  if (st.status === "done") {
+    if (activeSection !== null) selectSection(activeSection, false);
+    return;
+  }
+  if (String(st.status).startsWith("error")) return;
+  setTimeout(pollExtract, 3000);
+}
+
+function selectSong(s) {
+  current = s;
+  activeSection = null;
+  lineTimeMap = [];
+  nowLineIdx = -1;
+  vocalStopAt = null;
+  const studyMode = !!s.lyric; // 가사 등록됨 = 공부 모드
+  $("playerCard").style.display = "";
+  $("pTitle").textContent = `${s.song}`;
+  $("pMeta").textContent = `${s.artist} · 등록 ${s.date}`;
+  $("studyHint").style.display = studyMode ? "" : "none";
+  // 이미 싱크 완료된 곡에는 추출 버튼 노출 불필요
+  $("extractRow").style.display = (studyMode && s.lineTimes && s.lineTimes.length) ? "none" : "";
+  // 구간 버튼 (공부 모드에서는 불필요)
+  const bar = $("sectionBar");
+  if (!studyMode && s.sections && s.sections.length) {
+    bar.innerHTML = s.sections.map((sec, i) =>
+      `<button class="ctl" data-i="${i}">${sec.label} <span style="color:var(--sub);font-weight:400">${fmt(sec.start)}~${fmt(sec.end)}</span></button>`).join("");
+    bar.querySelectorAll(".ctl").forEach((b, i) => b.onclick = () => selectSection(i, true));
+  } else {
+    bar.innerHTML = "";
+    $("pGuide").innerHTML = "";
+  }
+  $("pAnalysis").innerHTML = lyricBlock(s) + (!studyMode && s.analysis ? `<div class="analysis">${s.analysis}</div>` : "");
+  $("pAnalysis").querySelectorAll("[data-say]").forEach(el => el.onclick = () => speak(readingOf(el.dataset.say)));
+  $("pAnalysis").querySelectorAll(".tts-mini").forEach(b => b.onclick = e => {
+    e.stopPropagation(); // 줄 클릭(보컬 재생)과 분리
+    speak(readingOf(b.closest(".lyr-jp").dataset.say));
+  });
+  matchLyricTimes(s); // 시간표 매칭되는 소절은 클릭 = 실제 보컬 재생으로 승격
+  const saveBtn = document.getElementById("lyricSave");
+  if (saveBtn) saveBtn.onclick = saveLyric;
+  const redo = document.getElementById("lyricRedo");
+  if (redo) redo.onclick = e => { e.preventDefault(); current.lyric = null; selectSong(current); };
+  mountPlayer(s);
+  if (!studyMode && s.sections && s.sections.length) selectSection(0, false);
+  if (typeof closeDetail === "function") closeDetail(); // 곡 바꾸면 상세 패널 닫기
+  document.querySelectorAll(".song-pick").forEach(el =>
+    el.classList.toggle("on", el.dataset.id === s.id));
+}
+
+let clickTimer = null; // 클릭/더블클릭 구분용 (클릭을 잠깐 유예)
+function applyLineTimes(els, timesArr) {
+  lineTimeMap = [];
+  els.forEach((el, li) => {
+    const t = timesArr[li];
+    if (!t) return;
+    el.title = `클릭: 여기부터 재생 · 더블클릭: 이 소절만 (${fmt(t.start)}~)`;
+    el.onclick = () => {
+      if (clickTimer) clearTimeout(clickTimer);
+      clickTimer = setTimeout(() => { clickTimer = null; seekPlay(t.start, li); }, 280);
+    };
+    el.ondblclick = () => {
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+      toggleDetail(li, t); // 더블클릭 = 우측 상세 패널 (같은 행 다시 더블클릭 = 닫기)
+    };
+    lineTimeMap.push({ el, start: t.start, end: t.end });
+  });
+  lineTimeMap.sort((a, b) => a.start - b.start);
+}
+
+async function matchLyricTimes(s) {
+  if (!s.lyric || !s.videoId) return;
+  // 튜터가 미리 계산해둔 정밀 싱크(lineTimes)가 있으면 최우선 사용
+  if (s.lineTimes && s.lineTimes.length) {
+    applyLineTimes([...document.querySelectorAll("#pAnalysis .lyr-jp")], s.lineTimes);
+    return;
+  }
+  // (없으면) 가사 줄 ↔ 음성 구간 즉석 정렬 폴백
+  const r = await fetch(`/api/video-text?videoId=${s.videoId}&start=0&end=999999`).catch(() => null);
+  if (!r || !r.ok) return;
+  const d = await r.json();
+  const segs = (d.segments || []).filter(sg => sg.end - sg.start > 0.3);
+  if (!segs.length) return;
+  lineTimeMap = []; // 재계산 시 중복 방지
+  const els = [...document.querySelectorAll("#pAnalysis .lyr-jp")];
+  const lines = els.map(el => el.dataset.say || el.textContent);
+
+  // 1) 유사도 후보
+  const cands = [];
+  lines.forEach((line, li) => segs.forEach((sg, si) => {
+    const sc = similarity(line, sg.text);
+    if (sc >= 0.25) cands.push({ li, si, sc });
+  }));
+  // 2) 점수 높은 순으로, 순서 모순(li·si 역전) 없는 앵커만 채택 → 반복 사비도 올바른 회차에 붙음
+  cands.sort((a, b) => b.sc - a.sc);
+  const anchors = [];
+  for (const c of cands) {
+    if (anchors.every(a => (c.li - a.li) * (c.si - a.si) > 0)) anchors.push(c);
+  }
+  anchors.sort((a, b) => a.li - b.li);
+  // 3) 앵커는 그 시각 그대로, 사이 줄들은 앵커 시각 사이를 글자 수 비례로 시간 분배
+  //    (음성 구간이 뒤에서 끊겨 있어도 모든 줄이 서로 다른 시각을 가짐 — 뭉침 방지)
+  const plainLen = t => t.replace(/（[^）]*）/g, "").replace(/\s/g, "").length || 3;
+  const times = new Array(lines.length).fill(null);
+  anchors.forEach(a => { times[a.li] = { start: segs[a.si].start, sure: true }; });
+  const duration = s.duration
+    || ((player && player.getDuration && player.getDuration() > 0) ? player.getDuration() : 0)
+    || segs[segs.length - 1].end + 25;
+  const pts = [
+    { li: -1, t: Math.max(0, segs[0].start - 2) },
+    ...anchors.map(a => ({ li: a.li, t: segs[a.si].start })),
+    { li: lines.length, t: Math.max(duration - 6, segs[segs.length - 1].end) },
+  ];
+  for (let p = 0; p < pts.length - 1; p++) {
+    const A = pts[p], B = pts[p + 1];
+    if (B.li - A.li <= 1) continue;
+    const weights = [A.li >= 0 ? plainLen(lines[A.li]) : 4];
+    for (let li = A.li + 1; li < B.li; li++) weights.push(plainLen(lines[li]));
+    const total = weights.reduce((x, y) => x + y, 0);
+    let acc = weights[0];
+    for (let k = 0; k < B.li - A.li - 1; k++) {
+      const li = A.li + 1 + k;
+      times[li] = { start: A.t + (B.t - A.t) * (acc / total) };
+      acc += weights[k + 1];
+    }
+  }
+  // 각 줄의 끝 = 다음 줄 시작 (더블클릭 한 소절 재생용)
+  for (let li = 0; li < lines.length; li++) {
+    if (!times[li]) continue;
+    let nextStart = null;
+    for (let j = li + 1; j < lines.length; j++) if (times[j]) { nextStart = times[j].start; break; }
+    times[li].end = nextStart !== null ? Math.max(times[li].start + 1.5, nextStart) : times[li].start + 6;
+  }
+  // 4) 전 줄 적용 (클릭 로직은 applyLineTimes로 통일)
+  applyLineTimes(els, times);
+}
+
+async function saveLyric() {
+  const lyric = document.getElementById("lyricInput").value.trim();
+  if (!lyric) { alert("가사를 붙여넣어줘."); return; }
+  const res = await fetch("/api/songs/lyric", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: current.id, lyric }),
+  }).catch(() => null);
+  if (!res || !res.ok) { alert("저장 실패 — 서버 상태 확인 필요."); return; }
+  const songs2 = await fetch("/api/songs").then(r => r.json());
+  songs = songs2;
+  selectSong(songs.find(x => x.id === current.id));
+}
+
+// (구간반복 시스템 제거됨 — 클릭 = 이동 재생, 더블클릭 = 한 소절만. 학습자 요청 2026-07-17)
+
+async function load() {
+  songs = await fetch("/api/songs").then(r => r.json()).catch(() => []);
+  const list = $("list");
+  if (!songs.length) {
+    list.innerHTML = "아직 등록된 노래가 없다.<br>채팅에서 \"○○(곡명) 넣어줘\"라고 하면 등록해준다.";
+    return;
+  }
+  list.classList.remove("empty");
+  list.innerHTML = "";
+  for (const s of songs) {
+    const b = document.createElement("button");
+    b.className = "song-pick";
+    b.dataset.id = s.id;
+    b.innerHTML = `<span class="sp-t">${s.song}</span><span class="sp-a">${s.artist}</span>`;
+    b.onclick = () => selectSong(s);
+    list.appendChild(b);
+  }
+  selectSong(songs[0]);
+}
+load();
+</script>
+</body>
+</html>

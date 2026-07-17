@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요청 자료</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 18px; }
+  .group { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+  .group h2 { font-size: 19px; color: var(--accent); margin-bottom: 8px; }
+  .group .note { color: var(--sub); font-size: 15px; line-height: 1.7; margin-bottom: 14px; word-break: keep-all; }
+  /* 자유 HTML 블록에서 쓸 수 있는 공용 스타일 */
+  .group table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .group th, .group td { padding: 8px; border-bottom: 1px solid var(--border); font-size: 15px; text-align: left; }
+  .group th { color: var(--sub); font-size: 13px; }
+  .group ul { margin: 8px 0 8px 20px; line-height: 1.8; font-size: 15px; }
+  .group p { line-height: 1.8; font-size: 16px; margin: 8px 0; word-break: keep-all; }
+  .group .jp-inline { font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 18px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; }
+  .say {
+    flex: 1; min-width: 150px; text-align: center;
+    background: var(--btn); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 12px; cursor: pointer; color: var(--text);
+  }
+  .say:hover { border-color: var(--accent); }
+  .say .jp { font-size: 32px; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; display: block; }
+  .say .lb { font-size: 15px; font-weight: 700; display: block; margin-top: 6px; }
+  .say .sub2 { font-size: 13px; color: var(--sub); display: block; margin-top: 3px; word-break: keep-all; }
+  .date { font-size: 12px; color: var(--sub); margin-top: 10px; }
+  /* 목록 모드 (Day별 하이어라키) */
+  .day-head { font-size: 20px; color: var(--accent); font-weight: 700; margin: 22px 0 10px; }
+  .req-link {
+    display: block; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 8px;
+    color: var(--text); text-decoration: none; font-size: 16px; font-weight: 600;
+  }
+  .req-link:hover { border-color: var(--accent); }
+  .to-list {
+    display: inline-block; margin-bottom: 14px; padding: 8px 14px; border-radius: 18px;
+    border: 1px solid var(--border); background: var(--btn);
+    color: var(--sub); text-decoration: none; font-size: 14px;
+  }
+  .to-list:hover { border-color: var(--accent); color: var(--text); }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>요청 자료 ⭐</h1>
+  <div class="subtitle">공부하다 궁금해서 요청한 것들이 여기 쌓인다. 버튼 = 발음 재생.</div>
+  <div id="content">불러오는 중...</div>
+</div>
+
+<script>
+"use strict";
+const audioCache = {};
+(window.__ttsCaches = window.__ttsCaches || []).push(audioCache); // 설정 서랍이 성우 변경 시 비움
+let currentAudio = null;
+let speakSeq = 0; // 연타 시 늦게 도착한 소리는 버린다
+async function speak(t) {
+  const seq = ++speakSeq;
+  try {
+    if (!audioCache[t]) {
+      const res = await fetch("/api/tts?text=" + encodeURIComponent(t) + "&_v=" + (localStorage.getItem("ttsVer") || "0"));
+      if (!res.ok) throw new Error("tts");
+      audioCache[t] = new Audio(URL.createObjectURL(await res.blob()));
+    }
+    if (seq !== speakSeq) return; // 그 사이 다른 걸 눌렀으면 이 소리는 버림
+    if (currentAudio) currentAudio.pause();
+    currentAudio = audioCache[t];
+    currentAudio.currentTime = 0;
+    currentAudio.play();
+  } catch { /* 무음 진행 */ }
+}
+
+// 각 요청 = {id, day, date, title, html}. html은 자유 형식이고,
+// data-say="..." 속성이 붙은 요소는 전부 클릭 시 발음 재생된다.
+// 라우팅: /custom = Day별 목록 (2단 하이어라키), /custom?id=rNNN = 요청 상세
+fetch("/custom.json").then(r => r.json()).then(reqs => {
+  const box = document.getElementById("content");
+  const want = new URLSearchParams(location.search).get("id");
+  box.innerHTML = "";
+
+  if (want) {
+    const g = reqs.find(x => x.id === want);
+    if (!g) { box.innerHTML = "<div class='note'>없는 요청이다.</div>"; return; }
+    box.innerHTML = `<a class="to-list" href="/custom">← 요청 목록</a>
+      <div class="group"><h2>${g.title}</h2>${g.html || ""}<div class="date">Day ${g.day} · ${g.date || ""}</div></div>`;
+    box.querySelectorAll("[data-say]").forEach(el => el.onclick = () => speak(el.dataset.say));
+    document.title = g.title;
+    return;
+  }
+
+  // 목록: Day 내림차순 → 요청 링크
+  const byDay = new Map();
+  for (const g of reqs) {
+    if (!byDay.has(g.day)) byDay.set(g.day, []);
+    byDay.get(g.day).push(g);
+  }
+  for (const [day, list] of [...byDay.entries()].sort((a, b) => b[0] - a[0])) {
+    box.insertAdjacentHTML("beforeend",
+      `<div class="day-head">Day ${day} <span style="font-size:14px;color:var(--sub)">· ${list[0].date} · ${list.length}건</span></div>`);
+    for (const g of list) {
+      box.insertAdjacentHTML("beforeend", `<a class="req-link" href="/custom?id=${g.id}">${g.title}</a>`);
+    }
+  }
+  if (!reqs.length) box.innerHTML = "<div class='note'>아직 요청이 없다. 공부하다 궁금한 걸 튜터에게 물어보면 여기 쌓인다.</div>";
+});
+</script>
+</body>
+</html>

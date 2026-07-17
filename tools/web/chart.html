@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가나 학습표</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 18px; }
+  .back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 10px;
+    color: var(--accent); font-size: 16px; font-weight: 700; text-decoration: none;
+  }
+  .back:hover { border-color: var(--accent); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab { padding: 10px 18px; border-radius: 20px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; font-size: 17px; }
+  .tab.on { background: var(--text); color: #14161b; font-weight: 700; }
+  .row-block { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .row-name { font-size: 15px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+  .cells { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .cells.wide { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 560px) { .cells, .cells.wide { grid-template-columns: repeat(3, 1fr); } }
+  .cell {
+    text-align: center; padding: 14px 4px 12px; background: var(--btn);
+    border: 1px solid var(--border); border-radius: 10px; cursor: pointer; user-select: none;
+  }
+  .cell:hover { border-color: var(--accent); }
+  .cell .kana { font-size: 44px; line-height: 1.15; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; }
+  .cell .sub2 { font-size: 16px; color: var(--sub); margin-top: 4px; }
+  .cell .sub3 { font-size: 14px; color: var(--accent); margin-top: 2px; font-family: "Yu Gothic", "Meiryo", sans-serif; }
+  .info { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; font-size: 17px; line-height: 1.9; }
+  .info h3 { font-size: 18px; margin: 16px 0 4px; color: var(--accent); }
+  .info h3:first-child { margin-top: 0; }
+  .info .jp { font-family: "Yu Gothic", "Meiryo", sans-serif; }
+  .say {
+    font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 19px;
+    background: var(--btn); border: 1px solid var(--border); border-radius: 8px;
+    padding: 3px 10px; cursor: pointer; white-space: nowrap;
+    color: var(--text);
+  }
+  .say:hover { border-color: var(--accent); }
+  .say::after { content: " 🔊"; font-size: 13px; }
+  .pair { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 10px; }
+  .notice { color: var(--sub); font-size: 14px; margin: 6px 0 16px; }
+  .cell.on { border-color: var(--accent); background: var(--card); }
+  /* 글자 상세 패널 — 노래탭처럼 옆에서 슬라이드, 다른 글자 누르면 런타임으로 갱신 */
+  .kpanel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 92vw;
+    background: var(--card); border-left: 1px solid var(--border); padding: 22px 22px 40px;
+    overflow-y: auto; transform: translateX(100%); transition: transform .22s ease; z-index: 60;
+  }
+  .kpanel.open { transform: translateX(0); box-shadow: -14px 0 40px rgba(0,0,0,.55); }
+  @media (min-width: 1300px) { body.kpanel-open { padding-right: 424px; } } /* 넓으면 본문을 옆으로 밀어 겹침 방지 */
+  .kp-close { position: absolute; top: 16px; right: 16px; background: var(--btn); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+  .kp-glyph { font-size: 130px; line-height: 1.05; text-align: center; margin: 14px 0 2px; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; }
+  .kp-read { text-align: center; color: var(--accent); font-size: 30px; font-weight: 700; }
+  .kp-ko { text-align: center; color: var(--sub); font-size: 18px; margin-top: 2px; }
+  .kp-play { display: block; margin: 16px auto 6px; padding: 13px 26px; font-size: 18px; border-radius: 40px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; }
+  .kp-play:hover { border-color: var(--accent); }
+  .kp-sec { margin-top: 20px; }
+  .kp-h { color: var(--accent); font-size: 14px; font-weight: 700; margin-bottom: 7px; letter-spacing: .3px; }
+  .kp-origin { font-size: 17px; line-height: 1.75; word-break: keep-all; }
+  .kp-origin b { color: var(--text); font-size: 20px; }
+  .kp-words { display: flex; flex-direction: column; gap: 7px; }
+  .kp-word { display: flex; align-items: baseline; gap: 10px; background: var(--btn); border: 1px solid var(--border); border-radius: 9px; padding: 9px 13px; cursor: pointer; }
+  .kp-word:hover { border-color: var(--accent); }
+  .kp-word .w { font-family: "Yu Gothic", "Meiryo", sans-serif; font-size: 21px; }
+  .kp-word .r { color: var(--accent); font-size: 14px; }
+  .kp-word .m { color: var(--sub); font-size: 15px; margin-left: auto; }
+  .kp-empty { color: var(--sub); font-size: 14px; }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>가나 학습표 📖</h1>
+  <div class="subtitle">글자를 클릭하면 발음을 들려준다. 외울 땐 소리 내어 따라 읽기.</div>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="hira">히라가나</button>
+    <button class="tab" data-tab="kata">가타카나</button>
+    <button class="tab" data-tab="yoon">요음 (작은 글자 조합)</button>
+    <button class="tab" data-tab="rules">촉음·장음·ん</button>
+  </div>
+  <div class="notice" id="ttsNotice"></div>
+  <div id="content">불러오는 중...</div>
+</div>
+
+<div class="kpanel" id="kpanel">
+  <button class="kp-close" id="kpClose">✕ 닫기</button>
+  <div class="kp-glyph" id="kpGlyph"></div>
+  <div class="kp-read" id="kpRead"></div>
+  <div class="kp-ko" id="kpKo"></div>
+  <button class="kp-play" id="kpPlay">🔊 소리 듣기</button>
+  <div class="kp-sec"><div class="kp-h">외우는 힌트 · 유래</div><div class="kp-origin" id="kpOrigin"></div></div>
+  <div class="kp-sec"><div class="kp-h">이 글자가 든 단어</div><div class="kp-words" id="kpWords"></div></div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+let deck = null, jaVoice = null;
+
+function pickVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.startsWith("ja"));
+  jaVoice = vs[0] || null;
+  $("#ttsNotice").textContent = jaVoice ? "" : "⚠ 브라우저에 일본어 음성이 없어 소리는 재생되지 않는다.";
+}
+if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = pickVoice; pickVoice(); }
+const audioCache = {};
+(window.__ttsCaches = window.__ttsCaches || []).push(audioCache); // 설정 서랍이 성우 변경 시 비움
+let currentAudio = null;
+let speakSeq = 0; // 연타 시 늦게 도착한 소리는 버린다
+async function speak(t) {
+  const seq = ++speakSeq;
+  try {
+    if (!audioCache[t]) {
+      const res = await fetch("/api/tts?text=" + encodeURIComponent(t) + "&_v=" + (localStorage.getItem("ttsVer") || "0"));
+      if (!res.ok) throw new Error("tts unavailable");
+      audioCache[t] = new Audio(URL.createObjectURL(await res.blob()));
+    }
+    if (seq !== speakSeq) return; // 그 사이 다른 걸 눌렀으면 이 소리는 버림
+    if (currentAudio) currentAudio.pause();
+    currentAudio = audioCache[t];
+    currentAudio.currentTime = 0;
+    currentAudio.play();
+  } catch {
+    // 폴백: 브라우저 내장 TTS
+    if (!jaVoice) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t);
+    u.voice = jaVoice; u.lang = jaVoice.lang; u.rate = 0.6;
+    speechSynthesis.speak(u);
+  }
+}
+
+const BASIC_ROWS = ["あ행","か행","さ행","た행","な행","は행","ま행","や행","ら행","わ행·ん","が행","ざ행","だ행","ば행","ぱ행"];
+const YOON_ROWS = ["요음","요음(탁)"];
+
+function cellHtml(it) {
+  const origin = it.origin ? `<div class="sub3">${it.origin}</div>` : "";
+  return `<div class="cell" data-id="${it.id}" data-say="${it.front}"><div class="kana">${it.front}</div><div class="sub2">${it.back} · ${it.ko}</div>${origin}</div>`;
+}
+
+// 글자 클릭 → 소리 + 옆 상세 패널 (다른 글자 누르면 런타임으로 내용 교체)
+let words = [];
+Promise.all([
+  fetch("/api/deck/hiragana-words").then(r => r.json()).catch(() => ({ items: [] })),
+  fetch("/api/deck/katakana-words").then(r => r.json()).catch(() => ({ items: [] })),
+]).then(([h, k]) => { words = [...(h.items || []), ...(k.items || [])]; });
+
+function originText(it) {
+  const kata = it.tags.includes("가타카나");
+  if (it.origin) {
+    return kata
+      ? `가타카나 <b>${it.front}</b> — 한자 <b>${it.origin}</b>의 일부를 딴 글자. 그 조각이 이 모양이 됐다고 기억하면 쉽다.`
+      : `히라가나 <b>${it.front}</b> — 한자 <b>${it.origin}</b>의 흘림체(초서)에서 왔다. 원래 한자를 떠올리면 모양이 외워진다.`;
+  }
+  if (it.tags.some(t => t.includes("요음"))) {
+    return `<b>${it.front}</b> — い단 글자 + 작은 ゃ/ゅ/ょ 조합. 두 글자를 <b>한 박자</b>로 붙여 읽는다.`;
+  }
+  return `<b>${it.front}</b> — 소리 내어 여러 번 따라 읽으며 모양에 익숙해지자.`;
+}
+
+function openKanaPanel(it) {
+  document.querySelectorAll(".cell.on").forEach(c => c.classList.remove("on"));
+  const cell = document.querySelector(`.cell[data-id="${it.id}"]`);
+  if (cell) cell.classList.add("on");
+  $("#kpGlyph").textContent = it.front;
+  $("#kpRead").textContent = it.back;
+  $("#kpKo").textContent = it.ko || "";
+  $("#kpPlay").onclick = () => speak(it.front);
+  $("#kpOrigin").innerHTML = originText(it);
+  const ex = words.filter(w => (w.front || "").includes(it.front)).slice(0, 8);
+  $("#kpWords").innerHTML = ex.length
+    ? ex.map(w => `<div class="kp-word" data-say="${w.front}"><span class="w">${w.front}</span><span class="r">${w.back}</span><span class="m">${w.ko || ""}</span></div>`).join("")
+    : `<div class="kp-empty">아직 이 글자가 든 등록 단어가 없다.</div>`;
+  $("#kpWords").querySelectorAll(".kp-word").forEach(b => b.onclick = () => speak(b.dataset.say));
+  const p = $("#kpanel");
+  p.classList.add("open");
+  document.body.classList.add("kpanel-open");
+}
+$("#kpClose").onclick = () => { $("#kpanel").classList.remove("open"); document.body.classList.remove("kpanel-open"); document.querySelectorAll(".cell.on").forEach(c => c.classList.remove("on")); };
+
+function wireCells(box) {
+  box.querySelectorAll(".cell").forEach(c => c.onclick = () => {
+    speak(c.dataset.say);
+    const it = deck.items.find(x => x.id === c.dataset.id);
+    if (it) openKanaPanel(it);
+  });
+}
+
+function renderRows(script, rows, wide) {
+  const box = $("#content");
+  box.innerHTML = "";
+  for (const row of rows) {
+    const items = deck.items.filter(it => it.tags.includes(row) && it.tags.includes(script));
+    if (!items.length) continue;
+    const block = document.createElement("div");
+    block.className = "row-block";
+    block.innerHTML = `<div class="row-name">${row}</div><div class="cells${wide ? " wide" : ""}">${items.map(cellHtml).join("")}</div>`;
+    box.appendChild(block);
+  }
+  wireCells(box);
+}
+
+function renderRules() {
+  $("#content").innerHTML = `<div class="info">
+    <h3>촉음 っ — 받침 같은 멈춤</h3>
+    작은 <span class="jp">っ</span>는 한 박자 숨을 막는 소리. 한국어 받침 ㅅ/ㄱ과 비슷하다. 있고 없고로 뜻이 갈린다:
+    <div class="pair">
+      <button class="say" data-say="きって">きって (킷테·우표)</button>
+      <button class="say" data-say="きて">きて (키테·와줘)</button>
+      <button class="say" data-say="ちょっと">ちょっと (춋토·잠깐)</button>
+      <button class="say" data-say="やった">やった (얏타·앗싸)</button>
+    </div>
+    <h3>장음 — 길게 늘이면 뜻이 바뀐다</h3>
+    같은 모음이 이어지면 두 박자로 길게. 아주머니를 할머니로 만들지 말 것:
+    <div class="pair">
+      <button class="say" data-say="おばさん">おばさん (아주머니)</button>
+      <button class="say" data-say="おばあさん">おばあさん (할머니)</button>
+      <button class="say" data-say="おじさん">おじさん (아저씨)</button>
+      <button class="say" data-say="おじいさん">おじいさん (할아버지)</button>
+    </div>
+    가타카나에서는 「ー」로 표기:
+    <div class="pair">
+      <button class="say" data-say="コーヒー">コーヒー (커피)</button>
+      <button class="say" data-say="ケーキ">ケーキ (케이크)</button>
+    </div>
+    <h3>ん — 위치 따라 소리가 변하는 콧소리</h3>
+    ㄴ/ㅁ/ㅇ 사이를 오간다. 뒤 글자에 끌려간다고 기억하면 편하다:
+    <div class="pair">
+      <button class="say" data-say="せんぱい">せんぱい (셈파이·선배, ㅁ에 가깝게)</button>
+      <button class="say" data-say="まんが">まんが (망가·만화, ㅇ에 가깝게)</button>
+      <button class="say" data-say="みんな">みんな (민나·모두, ㄴ)</button>
+    </div>
+    <h3>요음 — 작은 ゃ ゅ ょ 조합</h3>
+    い단 글자 + 작은 <span class="jp">ゃ/ゅ/ょ</span> = 한 박자로 합쳐 읽기. 크기 차이로 뜻이 갈린다:
+    <div class="pair">
+      <button class="say" data-say="びょういん">びょういん (뵤-인·병원)</button>
+      <button class="say" data-say="びよういん">びよういん (비요-인·미용실)</button>
+      <button class="say" data-say="きょう">きょう (쿄-·오늘)</button>
+      <button class="say" data-say="しゃしん">しゃしん (샤신·사진)</button>
+    </div>
+    전체 조합은 "요음" 탭에서.
+  </div>`;
+  $("#content").querySelectorAll(".say").forEach(b => b.onclick = () => speak(b.dataset.say));
+}
+
+const TABS = {
+  hira: () => renderRows("히라가나", BASIC_ROWS, false),
+  kata: () => renderRows("가타카나", BASIC_ROWS, false),
+  yoon: () => {
+    const box = $("#content"); box.innerHTML = "";
+    for (const script of ["히라가나", "가타카나"]) {
+      for (const row of YOON_ROWS) {
+        const items = deck.items.filter(it => it.tags.includes(row) && it.tags.includes(script));
+        if (!items.length) continue;
+        const block = document.createElement("div");
+        block.className = "row-block";
+        block.innerHTML = `<div class="row-name">${script} · ${row}</div><div class="cells">${items.map(cellHtml).join("")}</div>`;
+        box.appendChild(block);
+      }
+    }
+    wireCells(box);
+  },
+  rules: renderRules,
+};
+
+$("#tabs").querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  $("#tabs").querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+  t.classList.add("on");
+  TABS[t.dataset.tab]();
+});
+
+fetch("/api/deck/kana").then(r => r.json()).then(d => { deck = d; TABS.hira(); });
+</script>
+</body>
+</html>

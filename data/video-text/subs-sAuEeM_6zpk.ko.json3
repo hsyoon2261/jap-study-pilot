@@ -1,0 +1,361 @@
+{
+  "wireMagic": "pb3",
+  "pens": [ {
+  
+  } ],
+  "wsWinStyles": [ {
+  
+  } ],
+  "wpWinPositions": [ {
+  
+  } ],
+  "events": [ {
+    "tStartMs": 1220,
+    "dDurationMs": 4700,
+    "segs": [ {
+      "utf8": "밤하늘을 수놓는 아름다운 꽃"
+    } ]
+  }, {
+    "tStartMs": 5920,
+    "dDurationMs": 6000,
+    "segs": [ {
+      "utf8": "거리의 목소리를 꼬옥 빛이 감싸안아"
+    } ]
+  }, {
+    "tStartMs": 11920,
+    "dDurationMs": 6920,
+    "segs": [ {
+      "utf8": "소리 없는 둘만의 세계에서 들린 말은"
+    } ]
+  }, {
+    "tStartMs": 18840,
+    "dDurationMs": 1120,
+    "segs": [ {
+      "utf8": "「좋아해」"
+    } ]
+  }, {
+    "tStartMs": 27540,
+    "dDurationMs": 7600,
+    "segs": [ {
+      "utf8": "YOASOBI 제2장\n「저 꿈을 덧그리며」"
+    } ]
+  }, {
+    "tStartMs": 35780,
+    "dDurationMs": 4620,
+    "segs": [ {
+      "utf8": "꿈속에서 본 미래는"
+    } ]
+  }, {
+    "tStartMs": 40400,
+    "dDurationMs": 6160,
+    "segs": [ {
+      "utf8": "여름밤, 너와, 늘어선 그림자가 둘"
+    } ]
+  }, {
+    "tStartMs": 46560,
+    "dDurationMs": 6280,
+    "segs": [ {
+      "utf8": "마지막 불꽃이 하늘로 올라가고 사라지면"
+    } ]
+  }, {
+    "tStartMs": 52840,
+    "dDurationMs": 1800,
+    "segs": [ {
+      "utf8": "그것을 신호로"
+    } ]
+  }, {
+    "tStartMs": 56240,
+    "dDurationMs": 2860,
+    "segs": [ {
+      "utf8": "어느 때와 같은 아침에"
+    } ]
+  }, {
+    "tStartMs": 59100,
+    "dDurationMs": 2700,
+    "segs": [ {
+      "utf8": "어느 때와 같은 너의 모습"
+    } ]
+  }, {
+    "tStartMs": 61800,
+    "dDurationMs": 5460,
+    "segs": [ {
+      "utf8": "나도 모르게 눈을 돌려 버린 것은"
+    } ]
+  }, {
+    "tStartMs": 67260,
+    "dDurationMs": 6500,
+    "segs": [ {
+      "utf8": "어떻게 해도 잊을 수 없는 너의 말이"
+    } ]
+  }, {
+    "tStartMs": 73760,
+    "dDurationMs": 3820,
+    "segs": [ {
+      "utf8": "지금도 계속 울려퍼지고 있으니까"
+    } ]
+  }, {
+    "tStartMs": 78600,
+    "dDurationMs": 3640,
+    "segs": [ {
+      "utf8": "아아, 밤을 빠져나가"
+    } ]
+  }, {
+    "tStartMs": 82240,
+    "dDurationMs": 2540,
+    "segs": [ {
+      "utf8": "꿈의 저편으로"
+    } ]
+  }, {
+    "tStartMs": 84780,
+    "dDurationMs": 4380,
+    "segs": [ {
+      "utf8": "다다르고 싶은 미래로"
+    } ]
+  }, {
+    "tStartMs": 89160,
+    "dDurationMs": 2760,
+    "segs": [ {
+      "utf8": "정말로? 그 꿈에서"
+    } ]
+  }, {
+    "tStartMs": 91920,
+    "dDurationMs": 2000,
+    "segs": [ {
+      "utf8": "정말로? 라며 지금도"
+    } ]
+  }, {
+    "tStartMs": 93920,
+    "dDurationMs": 5920,
+    "segs": [ {
+      "utf8": "불안해져 버리겠지만 분명"
+    } ]
+  }, {
+    "tStartMs": 99840,
+    "dDurationMs": 3700,
+    "segs": [ {
+      "utf8": "아아, 지금을 빠져나가"
+    } ]
+  }, {
+    "tStartMs": 103540,
+    "dDurationMs": 2680,
+    "segs": [ {
+      "utf8": "내일의 저편으로"
+    } ]
+  }, {
+    "tStartMs": 106220,
+    "dDurationMs": 4280,
+    "segs": [ {
+      "utf8": "둘만의 장소로"
+    } ]
+  }, {
+    "tStartMs": 110500,
+    "dDurationMs": 1200,
+    "segs": [ {
+      "utf8": "조금만 더"
+    } ]
+  }, {
+    "tStartMs": 111700,
+    "dDurationMs": 1520,
+    "segs": [ {
+      "utf8": "부디 변하지 말아줘"
+    } ]
+  }, {
+    "tStartMs": 113220,
+    "dDurationMs": 920,
+    "segs": [ {
+      "utf8": "조금만 더"
+    } ]
+  }, {
+    "tStartMs": 114140,
+    "dDurationMs": 1600,
+    "segs": [ {
+      "utf8": "너로부터 들었던 말"
+    } ]
+  }, {
+    "tStartMs": 115740,
+    "dDurationMs": 2840,
+    "segs": [ {
+      "utf8": "그 미래에서 기다리고 있어"
+    } ]
+  }, {
+    "tStartMs": 135900,
+    "dDurationMs": 3160,
+    "segs": [ {
+      "utf8": "누구도 알지 못하는"
+    } ]
+  }, {
+    "tStartMs": 139060,
+    "dDurationMs": 2760,
+    "segs": [ {
+      "utf8": "둘만의 밤"
+    } ]
+  }, {
+    "tStartMs": 141820,
+    "dDurationMs": 5280,
+    "segs": [ {
+      "utf8": "애타게 기다리던 풍경과 겹쳐"
+    } ]
+  }, {
+    "tStartMs": 147100,
+    "dDurationMs": 1240,
+    "segs": [ {
+      "utf8": "여름의 하늘에"
+    } ]
+  }, {
+    "tStartMs": 148340,
+    "dDurationMs": 1420,
+    "segs": [ {
+      "utf8": "미래와 지금이"
+    } ]
+  }, {
+    "tStartMs": 149760,
+    "dDurationMs": 1260,
+    "segs": [ {
+      "utf8": "이어지도록"
+    } ]
+  }, {
+    "tStartMs": 151020,
+    "dDurationMs": 1420,
+    "segs": [ {
+      "utf8": "피어나는 불꽃"
+    } ]
+  }, {
+    "tStartMs": 152440,
+    "dDurationMs": 5080,
+    "segs": [ {
+      "utf8": "너와 이곳에서 이렇게, 저 꿈을 덧그려"
+    } ]
+  }, {
+    "tStartMs": 157520,
+    "dDurationMs": 3020,
+    "segs": [ {
+      "utf8": "올려다본 하늘을"
+    } ]
+  }, {
+    "tStartMs": 160540,
+    "dDurationMs": 4300,
+    "segs": [ {
+      "utf8": "수놓은 빛이 지금"
+    } ]
+  }, {
+    "tStartMs": 164840,
+    "dDurationMs": 3740,
+    "segs": [ {
+      "utf8": "밝게 비춘 옆모습"
+    } ]
+  }, {
+    "tStartMs": 169120,
+    "dDurationMs": 2780,
+    "segs": [ {
+      "utf8": "그래 계속, 이 풍경을 위해"
+    } ]
+  }, {
+    "tStartMs": 171900,
+    "dDurationMs": 3100,
+    "segs": [ {
+      "utf8": "그래 분명, 봐 두 가지의 미래가"
+    } ]
+  }, {
+    "tStartMs": 175000,
+    "dDurationMs": 3700,
+    "segs": [ {
+      "utf8": "지금 서로 겹쳐져"
+    } ]
+  }, {
+    "tStartMs": 182540,
+    "dDurationMs": 3700,
+    "segs": [ {
+      "utf8": "아아, 밤의 안에서"
+    } ]
+  }, {
+    "tStartMs": 186240,
+    "dDurationMs": 2580,
+    "segs": [ {
+      "utf8": "너와 함께"
+    } ]
+  }, {
+    "tStartMs": 188820,
+    "dDurationMs": 4360,
+    "segs": [ {
+      "utf8": "마침내 다다른 미래에서"
+    } ]
+  }, {
+    "tStartMs": 193180,
+    "dDurationMs": 2780,
+    "segs": [ {
+      "utf8": "괜찮아, 마음은 분명"
+    } ]
+  }, {
+    "tStartMs": 195960,
+    "dDurationMs": 2080,
+    "segs": [ {
+      "utf8": "괜찮아, 전해질 거야"
+    } ]
+  }, {
+    "tStartMs": 198040,
+    "dDurationMs": 5900,
+    "segs": [ {
+      "utf8": "그날 본 꿈의 저편으로"
+    } ]
+  }, {
+    "tStartMs": 203940,
+    "dDurationMs": 3700,
+    "segs": [ {
+      "utf8": "아아, 지금을 빠져나가"
+    } ]
+  }, {
+    "tStartMs": 207640,
+    "dDurationMs": 2540,
+    "segs": [ {
+      "utf8": "내일의 저편에서"
+    } ]
+  }, {
+    "tStartMs": 210180,
+    "dDurationMs": 4340,
+    "segs": [ {
+      "utf8": "다시 만난 너에게"
+    } ]
+  }, {
+    "tStartMs": 214520,
+    "dDurationMs": 1220,
+    "segs": [ {
+      "utf8": "조금만 더"
+    } ]
+  }, {
+    "tStartMs": 215740,
+    "dDurationMs": 1540,
+    "segs": [ {
+      "utf8": "부디 끝나지 않기를"
+    } ]
+  }, {
+    "tStartMs": 217280,
+    "dDurationMs": 1020,
+    "segs": [ {
+      "utf8": "조금만 더"
+    } ]
+  }, {
+    "tStartMs": 218300,
+    "dDurationMs": 2000,
+    "segs": [ {
+      "utf8": "봐, 마지막 불꽃이"
+    } ]
+  }, {
+    "tStartMs": 220300,
+    "dDurationMs": 2340,
+    "segs": [ {
+      "utf8": "지금 두 사람을 감싸"
+    } ]
+  }, {
+    "tStartMs": 223240,
+    "dDurationMs": 3840,
+    "segs": [ {
+      "utf8": "소리 없는 세계에서 울려퍼진"
+    } ]
+  }, {
+    "tStartMs": 227080,
+    "dDurationMs": 820,
+    "segs": [ {
+      "utf8": "「좋아해」"
+    } ]
+  } ]
+}

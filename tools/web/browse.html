@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>덱 열람</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 16px; }
+  .back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 10px;
+    color: var(--accent); font-size: 16px; font-weight: 700; text-decoration: none;
+  }
+  .back:hover { border-color: var(--accent); }
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 5; }
+  .jump a { padding: 8px 14px; border-radius: 18px; border: 1px solid var(--border); background: var(--btn); color: var(--text); font-size: 15px; text-decoration: none; }
+  .jump a:hover { border-color: var(--accent); }
+  h2 { font-size: 19px; color: var(--accent); margin: 26px 0 10px; }
+  .row {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 18px; margin-bottom: 8px; cursor: pointer;
+  }
+  .row:hover { border-color: var(--accent); }
+  .row .jp { font-size: 30px; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; flex-shrink: 0; }
+  .row .rom { color: var(--sub); font-size: 16px; min-width: 110px; }
+  .row .mean { font-size: 18px; margin-left: auto; text-align: right; }
+  .hint { color: var(--sub); font-size: 14px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1 id="title">덱 열람</h1>
+  <div class="subtitle" id="desc"></div>
+  <div class="hint">줄을 클릭하면 발음을 들려준다. 눈으로 읽고 → 듣고 → 소리 내어 따라 읽기.</div>
+  <div class="jump" id="jump"></div>
+  <div id="content">불러오는 중...</div>
+</div>
+
+<script>
+"use strict";
+const audioCache = {};
+(window.__ttsCaches = window.__ttsCaches || []).push(audioCache); // 설정 서랍이 성우 변경 시 비움
+let currentAudio = null;
+let speakSeq = 0; // 연타 시 늦게 도착한 소리는 버린다
+async function speak(t) {
+  const seq = ++speakSeq;
+  try {
+    if (!audioCache[t]) {
+      const res = await fetch("/api/tts?text=" + encodeURIComponent(t) + "&_v=" + (localStorage.getItem("ttsVer") || "0"));
+      if (!res.ok) throw new Error("tts unavailable");
+      audioCache[t] = new Audio(URL.createObjectURL(await res.blob()));
+    }
+    if (seq !== speakSeq) return; // 그 사이 다른 걸 눌렀으면 이 소리는 버림
+    if (currentAudio) currentAudio.pause();
+    currentAudio = audioCache[t];
+    currentAudio.currentTime = 0;
+    currentAudio.play();
+  } catch { /* 소리 없이 계속 */ }
+}
+
+const deckId = new URLSearchParams(location.search).get("deck") || "hiragana-words";
+fetch("/api/deck/" + deckId).then(r => r.json()).then(deck => {
+  document.getElementById("title").textContent = deck.title;
+  document.getElementById("desc").textContent = `${deck.items.length}개 · ${deck.description}`;
+  document.title = deck.title;
+  const groups = (deck.tagGroups && deck.tagGroups[0]) ? deck.tagGroups[0].tags : [null];
+  const content = document.getElementById("content");
+  const jump = document.getElementById("jump");
+  content.innerHTML = "";
+  for (const g of groups) {
+    const items = g ? deck.items.filter(it => it.tags.includes(g)) : deck.items;
+    if (!items.length) continue;
+    const anchor = "g-" + g;
+    const a = document.createElement("a");
+    a.href = "#" + anchor; a.textContent = `${g} ${items.length}`;
+    jump.appendChild(a);
+    const h = document.createElement("h2");
+    h.id = anchor; h.textContent = g;
+    content.appendChild(h);
+    for (const it of items) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<span class="jp">${it.front}</span><span class="rom">${it.back}</span><span class="mean">${it.ko || ""}</span>`;
+      row.onclick = () => speak(it.front);
+      content.appendChild(row);
+    }
+  }
+});
+</script>
+</body>
+</html>

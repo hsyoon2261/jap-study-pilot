@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학습지 목록</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 18px; }
+  .sheet-card {
+    display: block; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 10px;
+    color: var(--text); text-decoration: none;
+  }
+  .sheet-card:hover { border-color: var(--accent); }
+  .sheet-card .day { font-size: 14px; color: var(--accent); font-weight: 700; }
+  .sheet-card .t { font-size: 18px; font-weight: 700; margin: 3px 0; }
+  .sheet-card .meta { font-size: 14px; color: var(--sub); line-height: 1.6; word-break: keep-all; }
+  .empty { color: var(--sub); font-size: 15px; }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>학습지 목록 📚</h1>
+  <div class="subtitle">매일 하나씩 쌓인다. 클릭하면 그날 학습지로 이동.</div>
+  <div id="list" class="empty">불러오는 중...</div>
+</div>
+
+<script>
+"use strict";
+fetch("/sheets.json").then(r => r.json()).then(sheets => {
+  const list = document.getElementById("list");
+  if (!sheets.length) { list.textContent = "아직 학습지가 없다."; return; }
+  list.classList.remove("empty");
+  list.innerHTML = "";
+  for (const s of sheets) {
+    const kana = s.sections.filter(x => x.type === "kana").reduce((n, x) => n + x.items.length, 0);
+    const words = s.sections.filter(x => x.type === "words").reduce((n, x) => n + x.items.length, 0);
+    const a = document.createElement("a");
+    a.className = "sheet-card";
+    a.href = "/sheet?day=" + s.day;
+    a.innerHTML = `<div class="day">Day ${s.day} · ${s.date}</div>
+      <div class="t">${s.title}</div>
+      <div class="meta">글자 ${kana}개 · 단어 ${words}개</div>`;
+    list.appendChild(a);
+  }
+});
+</script>
+</body>
+</html>

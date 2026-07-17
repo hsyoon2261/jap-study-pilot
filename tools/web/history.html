@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학습 기록</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --ok: #57c78a; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  .back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 10px;
+    color: var(--accent); font-size: 16px; font-weight: 700; text-decoration: none;
+  }
+  .back:hover { border-color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section-label { font-size: 15px; font-weight: 700; color: var(--sub); margin-bottom: 12px; }
+  .stat-row { display: flex; gap: 10px; }
+  .stat { flex: 1; text-align: center; padding: 14px 4px; background: var(--btn); border-radius: 10px; }
+  .stat b { display: block; font-size: 26px; }
+  .stat span { font-size: 13px; color: var(--sub); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 15px; text-align: left; }
+  th { color: var(--sub); font-weight: 600; font-size: 13px; }
+  td.num { text-align: right; }
+  .kana { font-size: 20px; font-family: "Yu Gothic", "Meiryo", sans-serif; }
+  .arc-set { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: var(--btn); }
+  .arc-set .t { font-size: 15px; font-weight: 600; }
+  .arc-set .meta { font-size: 13px; color: var(--sub); margin-top: 3px; line-height: 1.5; }
+  .empty { color: var(--sub); font-size: 15px; }
+  .good { color: var(--ok); }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>학습 기록 📚</h1>
+
+  <div class="card">
+    <div class="section-label">전체 현황</div>
+    <div class="stat-row">
+      <div class="stat"><b id="stStreak">-</b><span>연속 학습일</span></div>
+      <div class="stat"><b id="stDays">-</b><span>총 학습일</span></div>
+      <div class="stat"><b id="stTotal">-</b><span>누적 문제</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">일별 기록 — 평균 속도가 줄어드는 게 자동화의 증거</div>
+    <table id="dayTable">
+      <tr><th>날짜</th><th class="num">문제</th><th class="num">정답률</th><th class="num">평균 속도</th></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="section-label">약한 항목 (틀린 횟수 순 — SRS가 자동으로 자주 출제 중)</div>
+    <table id="weakTable">
+      <tr><th>항목</th><th class="num">틀림</th><th class="num">맞힘</th><th>다음 복습</th></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="section-label">완료한 세트 아카이브 (최신순)</div>
+    <div id="archive" class="empty">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+Promise.all([
+  fetch("/api/stats").then(r => r.json()),
+  fetch("/api/sets/archive").then(r => r.json()).catch(() => []),
+]).then(([stats, archive]) => {
+  document.getElementById("stStreak").textContent = stats.streak + "일";
+  document.getElementById("stDays").textContent = stats.activeDays + "일";
+  document.getElementById("stTotal").textContent = stats.totalAnswers;
+
+  const dt = document.getElementById("dayTable");
+  for (const d of stats.days || []) {
+    const pct = d.count ? Math.round(d.correct / d.count * 100) : 0;
+    const speed = d.avgMs ? (d.avgMs / 1000).toFixed(1) + "초" : "—";
+    dt.insertAdjacentHTML("beforeend",
+      `<tr><td>${d.date}</td><td class="num">${d.count}</td><td class="num">${pct}%</td><td class="num">${speed}</td></tr>`);
+  }
+
+  const wt = document.getElementById("weakTable");
+  if (!(stats.weak || []).length) {
+    wt.insertAdjacentHTML("beforeend", `<tr><td colspan="4" class="empty">없음 — 완벽!</td></tr>`);
+  }
+  for (const w of stats.weak || []) {
+    const label = w.key.split(":").pop().replace(/^[hk]-/, "").replace(/^k?w\d+$/, w.key);
+    const due = (w.due || "").slice(5, 10).replace("-", "/");
+    wt.insertAdjacentHTML("beforeend",
+      `<tr><td class="kana">${label}</td><td class="num">${w.wrong}</td><td class="num good">${w.right}</td><td>${due}</td></tr>`);
+  }
+
+  const arc = document.getElementById("archive");
+  if (!archive.length) { arc.textContent = "아직 없음"; return; }
+  arc.classList.remove("empty");
+  arc.innerHTML = "";
+  for (const s of archive.slice().reverse()) {
+    const div = document.createElement("div");
+    div.className = "arc-set";
+    div.innerHTML = `<div class="t">✅ ${s.title}</div>
+      <div class="meta">완료 ${(s.doneAt || "").replace("T", " ")}${s.feedback ? "<br>피드백: " + s.feedback : ""}</div>`;
+    arc.appendChild(div);
+  }
+});
+</script>
+</body>
+</html>

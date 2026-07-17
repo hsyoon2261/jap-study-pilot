@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일본어 훈련</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --accent-soft: #3a2320;
+    --ok: #57c78a; --ok-soft: #1d3328;
+    --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 1100px; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 14px; }
+  /* 홈은 2단 컬럼 (좁은 화면에선 자동 1단) */
+  #home { columns: 2 460px; column-gap: 14px; }
+  #home > * { break-inside: avoid; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .section-label { font-size: 15px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .chip { padding: 9px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--btn); cursor: pointer; font-size: 16px; user-select: none; }
+  .chip.on { background: var(--text); color: #14161b; border-color: var(--text); font-weight: 700; }
+  .chip.small { padding: 7px 13px; font-size: 15px; }
+  .chip:disabled, .chip.disabled { opacity: .4; cursor: not-allowed; }
+  .link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; text-decoration: underline; }
+  .big-btn { width: 100%; padding: 14px; font-size: 17px; font-weight: 700; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+  .big-btn:disabled { background: #ccc; cursor: not-allowed; }
+  .ghost-btn { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; margin-top: 8px; }
+  /* home */
+  .deck-item { display: flex; justify-content: space-between; align-items: center; padding: 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; cursor: pointer; background: var(--btn); }
+  .deck-item:hover { border-color: var(--text); }
+  .deck-title { font-weight: 700; font-size: 18px; }
+  .deck-desc { color: var(--sub); font-size: 14px; margin-top: 2px; word-break: keep-all; }
+  .deck-desc a { white-space: nowrap; }
+  .deck-count { color: var(--sub); font-size: 14px; white-space: nowrap; margin-left: 12px; }
+  .stat-row { display: flex; gap: 10px; margin-bottom: 4px; }
+  .stat { flex: 1; text-align: center; padding: 10px 4px; background: var(--btn); border-radius: 10px; }
+  .stat b { display: block; font-size: 27px; }
+  .stat span { font-size: 13px; color: var(--sub); }
+  .weak-list { margin-top: 12px; font-size: 16px; }
+  .weak-list .kana { font-size: 22px; font-family: "Yu Gothic", "Meiryo", sans-serif; }
+  .chart-link { display: block; text-align: center; padding: 15px; font-size: 17px; font-weight: 700; color: var(--text); background: var(--btn); border: 1px solid var(--border); border-radius: 10px; text-decoration: none; }
+  .chart-link:hover { border-color: var(--text); }
+  .set-item { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 7px; background: var(--btn); }
+  .set-item.done { opacity: .55; }
+  .set-title { font-size: 16px; font-weight: 600; flex: 1; min-width: 0; word-break: keep-all; }
+  .set-btns { display: flex; gap: 8px; flex-shrink: 0; }
+  .mini-btn { padding: 9px 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 15px; }
+  .mini-btn:hover { border-color: var(--text); }
+  .mini-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .mini-btn:disabled { opacity: .5; cursor: default; }
+  /* drill */
+  .quiz-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 13px; color: var(--sub); }
+  .prompt { text-align: center; font-size: 96px; font-weight: 500; padding: 26px 0 8px; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif; color: var(--text); }
+  .prompt.roman { font-size: 50px; padding: 40px 0 20px; }
+  .prompt.word { font-size: 62px; padding: 30px 0 4px; } /* 단어(한자·가나) — 96px보다 작게 */
+  .prompt-sub { text-align: center; color: var(--sub); font-size: 16px; margin-bottom: 22px; min-height: 20px; }
+  .prompt-sub .reading { color: var(--accent); font-size: 23px; font-weight: 600; } /* 일본어 밑 읽기 */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .choice { padding: 18px 8px; font-size: 27px; border-radius: 10px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", "Segoe UI", sans-serif; }
+  .choice small { display: block; font-size: 15px; color: var(--sub); margin-top: 3px; }
+  .choice .num { position: absolute; font-size: 11px; color: var(--sub); }
+  .choice.correct { background: var(--ok-soft); border-color: var(--ok); }
+  .choice.wrong { background: var(--accent-soft); border-color: var(--accent); }
+  .choice:disabled { cursor: default; }
+  .typing-box { display: flex; gap: 8px; }
+  .typing-box input { flex: 1; padding: 14px; font-size: 24px; border: 1px solid var(--border); border-radius: 10px; text-align: center; background: var(--btn); color: var(--text); }
+  .typing-box button { padding: 14px 22px; font-size: 17px; border: none; border-radius: 10px; background: var(--text); color: #14161b; font-weight: 700; cursor: pointer; }
+  .play-btn { display: block; margin: 0 auto 20px; padding: 18px 34px; font-size: 30px; border-radius: 50px; border: 1px solid var(--border); background: var(--btn); cursor: pointer; }
+  .feedback { text-align: center; margin-top: 16px; font-size: 18px; min-height: 26px; }
+  .feedback .ok { color: var(--ok); font-weight: 700; }
+  .feedback .no { color: var(--accent); font-weight: 700; }
+  .feedback .picked { color: var(--sub); font-size: 15px; margin-top: 6px; }
+  .feedback .picked b { color: var(--accent); }
+  .next-hint { text-align: center; color: var(--sub); font-size: 12px; margin-top: 8px; min-height: 16px; }
+  /* result */
+  .score-big { text-align: center; font-size: 42px; font-weight: 800; margin: 10px 0 4px; }
+  .score-sub { text-align: center; color: var(--sub); margin-bottom: 18px; }
+  table.weak { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  table.weak td, table.weak th { padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 14px; text-align: left; }
+  table.weak th { color: var(--sub); font-weight: 600; font-size: 12px; }
+  .kana-cell { font-size: 22px; font-family: "Yu Gothic", "Meiryo", sans-serif; }
+  .hidden { display: none; }
+  .notice { font-size: 12px; color: var(--sub); margin-top: 8px; text-align: center; }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>일본어 훈련 🎌</h1>
+  <div class="subtitle">기록은 전부 파일로 저장되고, 튜터가 다음 수업에 반영한다.</div>
+
+  <!-- 홈 = 오늘의 작업대: ①오늘의 세트 ②복습 대기 ③현황 ④학습 자료 ⑤자유 연습 -->
+  <div id="home">
+    <a class="chart-link" id="sheetLink" href="/sheets" style="margin-bottom:12px; padding:12px">📝 오늘의 학습지 열기</a>
+    <div class="card" id="setsCard" style="display:none">
+      <div class="section-label">오늘의 훈련 세트 — 다 익혔다 싶을 때 직접 완료를 누르면 진도에 기록된다</div>
+      <div id="setList"></div>
+    </div>
+    <div class="card" id="reviewCard" style="display:none">
+      <div class="section-label">복습 대기 — 복습 시점이 된 항목 (안 비우면 계속 쌓인다)</div>
+      <div id="reviewList"></div>
+    </div>
+    <div class="card">
+      <div class="section-label">현황 &nbsp;<a href="/history" class="link-btn">기록 전체 보기 →</a></div>
+      <div class="stat-row">
+        <div class="stat"><b id="stStreak">-</b><span>연속 학습일</span></div>
+        <div class="stat"><b id="stToday">-</b><span>오늘 푼 문제</span></div>
+        <div class="stat"><b id="stTotal">-</b><span>누적 문제</span></div>
+      </div>
+      <div class="weak-list" id="weakList"></div>
+    </div>
+    <div class="card" id="reqCard" style="display:none">
+      <div class="section-label">오늘의 요청 &nbsp;<a href="/custom" class="link-btn">전체 요청 보기 →</a></div>
+      <div id="reqList"></div>
+    </div>
+    <div class="card">
+      <div class="section-label">훈련 덱 (자유 연습)</div>
+      <div id="deckList">불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- 훈련 설정 -->
+  <div id="setup" class="card hidden">
+    <div class="section-label" id="setupTitle"></div>
+    <div class="section-label">방식</div>
+    <div class="chip-row" id="modeChips">
+      <div class="chip on" data-mode="f2b">보고 → 뜻/발음</div>
+      <div class="chip" data-mode="b2f">뜻/발음 → 고르기</div>
+      <div class="chip" data-mode="typing">입력 (로마자)</div>
+      <div class="chip" data-mode="listen">듣기 🔊</div>
+      <div class="chip" data-mode="mix">섞어서</div>
+    </div>
+    <div id="tagGroupsBox"></div>
+    <div class="section-label">문제 수</div>
+    <div class="chip-row" id="countChips">
+      <div class="chip small" data-count="10">10</div>
+      <div class="chip small on" data-count="20">20</div>
+      <div class="chip small" data-count="40">40</div>
+    </div>
+    <button class="big-btn" id="startBtn">시작</button>
+    <button class="ghost-btn" onclick="show('home'); loadHome()">← 돌아가기</button>
+    <div class="notice" id="srsNotice"></div>
+  </div>
+
+  <!-- 훈련 화면 -->
+  <div id="drill" class="card hidden">
+    <div class="quiz-top"><span id="qProgress"></span><span id="qScore"></span></div>
+    <button class="play-btn hidden" id="playBtn">🔊</button>
+    <div class="prompt" id="qPrompt"></div>
+    <div class="prompt-sub" id="qPromptSub"></div>
+    <div class="choices hidden" id="qChoices"></div>
+    <div class="typing-box hidden" id="qTyping">
+      <input id="qInput" autocomplete="off" placeholder="로마자로 입력">
+      <button id="qSubmit">확인</button>
+    </div>
+    <div class="feedback" id="qFeedback"></div>
+    <div class="next-hint" id="qNextHint"></div>
+  </div>
+
+  <!-- 결과 -->
+  <div id="result" class="card hidden">
+    <div class="score-big" id="rScore"></div>
+    <div class="score-sub" id="rSub"></div>
+    <div id="rWeakWrap">
+      <div class="section-label">이번에 틀린 것 (복습 대기열로 이동)</div>
+      <table class="weak" id="rWeakTable"></table>
+    </div>
+    <button class="big-btn" id="againBtn">같은 설정으로 한 번 더</button>
+    <button class="ghost-btn" onclick="show('home'); loadHome()">홈으로</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// 로마자 이형 표기 허용 (헵번 외 훈령식 등)
+const ROMAJI_ALT = { shi:["si"], chi:["ti"], tsu:["tu"], fu:["hu"], ji:["zi","di"], zu:["du"],
+  sha:["sya"], shu:["syu"], sho:["syo"], cha:["tya"], chu:["tyu"], cho:["tyo"],
+  ja:["zya","jya"], ju:["zyu","jyu"], jo:["zyo","jyo"] };
+
+const state = {
+  deck: null, deckMeta: null, srs: {},
+  mode: "f2b", count: 20, selectedTags: {},
+  restrictIds: null, // 세트가 특정 항목만 지정한 경우 (출제 제한. 보기는 덱 전체에서)
+  queue: [], idx: 0, correct: 0, wrong: [],
+  answered: false, jaVoice: null,
+};
+
+function show(id) { ["home","setup","drill","result"].forEach(x => $(x).classList.toggle("hidden", x !== id)); }
+
+// ── TTS ──
+function pickJaVoice() {
+  // 폴백용 브라우저 내장 음성. 메인 음성은 서버 TTS(/api/tts)라 듣기 모드는 항상 활성.
+  const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.startsWith("ja"));
+  state.jaVoice = vs[0] || null;
+}
+if ("speechSynthesis" in window) {
+  speechSynthesis.onvoiceschanged = pickJaVoice;
+  pickJaVoice();
+}
+const audioCache = {};
+(window.__ttsCaches = window.__ttsCaches || []).push(audioCache); // 설정 서랍이 성우 변경 시 비움
+let currentAudio = null;
+let speakSeq = 0; // 연타 시 늦게 도착한 소리는 버린다
+async function speak(text) {
+  const seq = ++speakSeq;
+  try {
+    if (!audioCache[text]) {
+      const res = await fetch("/api/tts?text=" + encodeURIComponent(text) + "&_v=" + (localStorage.getItem("ttsVer") || "0"));
+      if (!res.ok) throw new Error("tts unavailable");
+      audioCache[text] = new Audio(URL.createObjectURL(await res.blob()));
+    }
+    if (seq !== speakSeq) return; // 그 사이 다른 걸 눌렀으면 이 소리는 버림
+    if (currentAudio) currentAudio.pause();
+    currentAudio = audioCache[text];
+    currentAudio.currentTime = 0;
+    currentAudio.play();
+  } catch {
+    // 폴백: 브라우저 내장 TTS
+    if (!state.jaVoice) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = state.jaVoice; u.lang = state.jaVoice.lang; u.rate = 0.6;
+    speechSynthesis.speak(u);
+  }
+}
+
+// ── 홈 ──
+async function loadHome() {
+  let decks, stats, sets, srsAll, sheets, reqs;
+  try {
+    [decks, stats, sets, srsAll, sheets, reqs] = await Promise.all([
+      fetch("/api/decks").then(r => r.json()),
+      fetch("/api/stats").then(r => r.json()),
+      fetch("/api/sets").then(r => r.json()).catch(() => []),
+      fetch("/api/state").then(r => r.json()).catch(() => ({})),
+      fetch("/sheets.json").then(r => r.json()).catch(() => []),
+      fetch("/custom.json").then(r => r.json()).catch(() => []),
+    ]);
+  } catch {
+    $("deckList").innerHTML = "⚠ <b>서버 연결 안 됨.</b> start-server.bat 실행 후 새로고침(F5) 해줘.";
+    $("setsCard").style.display = "none";
+    return;
+  }
+  renderSets(sets);
+  renderReview(srsAll, decks);
+  if (sheets.length) {
+    const latest = sheets[0];
+    const link = $("sheetLink");
+    link.href = `/sheet?day=${latest.day}`;
+    link.textContent = `📝 오늘의 학습지 열기 (Day ${latest.day} · ${latest.date.slice(5).replace("-", "/")})`;
+  }
+  // 오늘의 요청: 오늘 날짜(로컬 기준)에 등록된 것만
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayReqs = reqs.filter(r => r.date === today);
+  if (todayReqs.length) {
+    $("reqCard").style.display = "";
+    $("reqList").innerHTML = todayReqs.map(r =>
+      `<a class="set-item" style="text-decoration:none;color:var(--text)" href="/custom?id=${r.id}">
+         <div class="set-title">⭐ ${r.title}</div></a>`).join("");
+  } else {
+    $("reqCard").style.display = "none";
+  }
+  $("stStreak").textContent = stats.streak + "일";
+  $("stToday").textContent = stats.today.count;
+  $("stTotal").textContent = stats.totalAnswers;
+  $("weakList").innerHTML = stats.weak.length
+    ? "<b>약한 항목:</b> " + stats.weak.map(w => {
+        const raw = w.key.split(":").pop().replace(/^[hk]-/, "");
+        return `<span class="kana">${raw}</span>(${w.wrong})`;
+      }).join(" ")
+    : "아직 약점 기록 없음 — 훈련을 시작해보자.";
+  const box = $("deckList");
+  box.innerHTML = decks.length ? "" : "덱이 없다. 튜터에게 만들어 달라고 하자.";
+  for (const d of decks) {
+    const el = document.createElement("div");
+    el.className = "deck-item";
+    el.innerHTML = `<div><div class="deck-title">${d.title}</div><div class="deck-desc">${d.description} <a href="/browse?deck=${d.id}" style="color:var(--accent)">전체 보기 →</a></div></div><div class="deck-count">${d.count}개</div>`;
+    el.onclick = () => openSetup(d.id);
+    el.querySelector("a").onclick = e => e.stopPropagation();
+    box.appendChild(el);
+  }
+}
+
+// ── 오늘의 세트 ──
+function renderSets(sets) {
+  const card = $("setsCard"), list = $("setList");
+  if (!sets.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  list.innerHTML = "";
+  for (const s of sets) {
+    const div = document.createElement("div");
+    div.className = "set-item" + (s.done ? " done" : "");
+    div.innerHTML = `<div class="set-title">${s.done ? "✅ " : ""}${s.title}</div>
+      <div class="set-btns">
+        <button class="mini-btn" data-act="start">시작</button>
+        <button class="mini-btn accent" data-act="done">${s.done ? "완료됨" : "완료"}</button>
+      </div>`;
+    div.querySelector('[data-act="start"]').onclick = () => startSet(s);
+    const doneBtn = div.querySelector('[data-act="done"]');
+    if (s.done) doneBtn.disabled = true;
+    else doneBtn.onclick = async () => {
+      await fetch("/api/sets/done", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: s.id }) });
+      loadHome();
+    };
+    list.appendChild(div);
+  }
+}
+
+// ── 복습 대기 (SRS due) ──
+function renderReview(srsAll, decks) {
+  const card = $("reviewCard"), list = $("reviewList");
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const nowStr = now.toISOString().slice(0, 19);
+  const titles = Object.fromEntries(decks.map(d => [d.id, d.title]));
+  const dueByDeck = {};
+  for (const [key, s] of Object.entries(srsAll)) {
+    if (!s.due || s.due > nowStr) continue;
+    const i = key.indexOf(":");
+    const deckId = key.slice(0, i), itemId = key.slice(i + 1);
+    if (!titles[deckId]) continue;
+    (dueByDeck[deckId] = dueByDeck[deckId] || []).push(itemId);
+  }
+  const entries = Object.entries(dueByDeck);
+  if (!entries.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  list.innerHTML = "";
+  for (const [deckId, ids] of entries) {
+    const div = document.createElement("div");
+    div.className = "set-item";
+    div.innerHTML = `<div class="set-title">${titles[deckId]} — ${ids.length}개 대기</div>
+      <div class="set-btns"><button class="mini-btn accent">복습 시작</button></div>`;
+    div.querySelector("button").onclick = () => startSet({
+      deck: deckId, itemIds: ids, mode: "mix", count: Math.min(20, ids.length),
+    });
+    list.appendChild(div);
+  }
+}
+
+async function startSet(s) {
+  let deck, srs;
+  try {
+    [deck, srs] = await Promise.all([
+      fetch("/api/deck/" + s.deck).then(r => r.json()),
+      fetch("/api/state").then(r => r.json()),
+    ]);
+  } catch {
+    alert("서버 연결이 끊겼어. start-server.bat 실행 후 새로고침(F5) 해줘.");
+    return;
+  }
+  state.deck = deck; state.srs = srs;
+  state.restrictIds = (s.itemIds && s.itemIds.length) ? new Set(s.itemIds) : null;
+  state.mode = s.mode; state.count = s.count;
+  state.selectedTags = {};
+  for (const g of deck.tagGroups || []) {
+    state.selectedTags[g.name] = new Set((s.tags && s.tags[g.name]) || g.tags);
+  }
+  startDrill();
+}
+
+// ── 설정 ──
+async function openSetup(deckId) {
+  const deck = await fetch("/api/deck/" + deckId).then(r => r.json());
+  const srs = await fetch("/api/state").then(r => r.json());
+  state.deck = deck; state.srs = srs;
+  state.restrictIds = null;
+  $("setupTitle").textContent = "덱: " + deck.title;
+  const box = $("tagGroupsBox");
+  box.innerHTML = "";
+  state.selectedTags = {};
+  for (const g of deck.tagGroups || []) {
+    state.selectedTags[g.name] = new Set(g.tags);
+    const label = document.createElement("div");
+    label.className = "section-label";
+    label.innerHTML = `${g.name} <button class="link-btn" data-g="${g.name}" data-act="all">전체</button> <button class="link-btn" data-g="${g.name}" data-act="none">해제</button>`;
+    const row = document.createElement("div");
+    row.className = "chip-row";
+    row.dataset.group = g.name;
+    for (const t of g.tags) {
+      const c = document.createElement("div");
+      c.className = "chip small on"; c.textContent = t; c.dataset.tag = t;
+      c.onclick = () => {
+        const set = state.selectedTags[g.name];
+        if (set.has(t)) { set.delete(t); c.classList.remove("on"); }
+        else { set.add(t); c.classList.add("on"); }
+      };
+      row.appendChild(c);
+    }
+    label.querySelectorAll(".link-btn").forEach(b => b.onclick = () => {
+      const set = state.selectedTags[b.dataset.g];
+      const on = b.dataset.act === "all";
+      row.querySelectorAll(".chip").forEach(c => {
+        c.classList.toggle("on", on);
+        if (on) set.add(c.dataset.tag); else set.delete(c.dataset.tag);
+      });
+    });
+    box.appendChild(label); box.appendChild(row);
+  }
+  const due = dueCount();
+  $("srsNotice").textContent = due > 0 ? `복습 시점이 된 항목 ${due}개가 우선 출제된다.` : "";
+  show("setup");
+}
+
+$("modeChips").querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  if (c.classList.contains("disabled")) return;
+  state.mode = c.dataset.mode;
+  $("modeChips").querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
+  c.classList.add("on");
+});
+$("countChips").querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  state.count = +c.dataset.count;
+  $("countChips").querySelectorAll(".chip").forEach(x => x.classList.remove("on"));
+  c.classList.add("on");
+});
+
+function filteredItems() {
+  return state.deck.items.filter(it => {
+    for (const g of state.deck.tagGroups || []) {
+      const groupTags = it.tags.filter(t => g.tags.includes(t));
+      if (groupTags.length && !groupTags.some(t => state.selectedTags[g.name].has(t))) return false;
+    }
+    return true;
+  });
+}
+function srsKey(it) { return state.deck.id + ":" + it.id; }
+function dueCount() {
+  const now = new Date().toISOString().slice(0, 19);
+  return filteredItems().filter(it => { const s = state.srs[srsKey(it)]; return s && s.due <= now; }).length;
+}
+
+function queueItems() {
+  const base = filteredItems();
+  return state.restrictIds ? base.filter(it => state.restrictIds.has(it.id)) : base;
+}
+
+// ── 큐 구성: 복습 due → 새 항목 → 나머지(오답 가중) ──
+function buildQueue() {
+  if (filteredItems().length < 4) return null; // 4지선다 보기 재료 부족
+  const pool = queueItems();
+  if (!pool.length) return null;
+  const now = new Date().toISOString().slice(0, 19);
+  const due = [], fresh = [], rest = [];
+  for (const it of pool) {
+    const s = state.srs[srsKey(it)];
+    if (!s) fresh.push(it);
+    else if (s.due <= now) due.push(it);
+    else rest.push(it);
+  }
+  shuffle(due); shuffle(fresh);
+  const weighted = [];
+  for (const it of rest) {
+    const s = state.srs[srsKey(it)];
+    const w = 1 + Math.min(5, (s ? s.wrong : 0));
+    for (let i = 0; i < w; i++) weighted.push(it);
+  }
+  shuffle(weighted);
+  const picked = [], seen = new Set();
+  for (const src of [due, fresh, weighted]) {
+    for (const it of src) {
+      if (picked.length >= state.count) break;
+      if (seen.has(it.id)) continue;
+      seen.add(it.id); picked.push(it);
+    }
+  }
+  // 부족하면 중복 허용으로 채움
+  while (picked.length < state.count && pool.length) picked.push(pool[Math.floor(Math.random() * pool.length)]);
+  return picked.map(it => ({ item: it, mode: state.mode === "mix" ? pickMixMode() : state.mode }));
+}
+function pickMixMode() {
+  const modes = ["f2b", "b2f", "typing", "listen"];
+  return modes[Math.floor(Math.random() * modes.length)];
+}
+
+$("startBtn").onclick = startDrill;
+$("againBtn").onclick = startDrill;
+
+function startDrill() {
+  const q = buildQueue();
+  if (!q) { alert("범위가 너무 좁다. 태그를 더 선택해줘."); return; }
+  state.queue = q; state.idx = 0; state.correct = 0; state.wrong = [];
+  show("drill"); render();
+}
+
+// ── 문제 렌더 ──
+function render() {
+  const { item, mode } = state.queue[state.idx];
+  state.answered = false;
+  state.qStart = Date.now();
+  $("qProgress").textContent = `${state.idx + 1} / ${state.queue.length}`;
+  $("qScore").textContent = `정답 ${state.correct}`;
+  $("qFeedback").textContent = ""; $("qNextHint").textContent = "";
+  $("qChoices").classList.add("hidden"); $("qTyping").classList.add("hidden"); $("playBtn").classList.add("hidden");
+  const prompt = $("qPrompt"), sub = $("qPromptSub");
+  prompt.classList.remove("roman", "word");
+  const vocab = !!(state.deck && state.deck.vocab);          // 단어 덱 = 뜻 기반, 가나 덱 = 읽기 기반
+  const jpChoice = c => `${c.front}<small>${c.back}</small>`; // 일본어 보기엔 항상 읽는 법 첨부
+  const sameItem = c => c.id === item.id;
+
+  if (mode === "f2b") {
+    if (vocab) {  // 일본어(+읽기) 보여주고 → 뜻 4개(한국어)에서 고르기
+      prompt.textContent = item.front;
+      prompt.classList.add("word");
+      sub.innerHTML = `<span class="reading">${item.back}</span> · 뜻은?`;
+      renderChoices(item, c => c.ko || c.back, sameItem);
+    } else {      // 가나: 글자 보여주고 → 발음 고르기 (문자 단계의 핵심 훈련)
+      prompt.textContent = item.front;
+      sub.textContent = "발음/뜻은?";
+      renderChoices(item, c => `${c.back}${c.ko ? `<small>${c.ko}</small>` : ""}`, c => c.back === item.back);
+    }
+  } else if (mode === "b2f") {
+    if (vocab) {  // 뜻(한국어) 보여주고 → 일본어 단어 4개(읽기 첨부)에서 고르기
+      prompt.textContent = item.ko || item.back;
+      prompt.classList.add("roman");
+      sub.textContent = "맞는 일본어는?";
+      renderChoices(item, jpChoice, sameItem);
+    } else {      // 가나: 발음 보여주고 → 글자 고르기
+      prompt.textContent = item.back + (item.ko ? ` (${item.ko})` : "");
+      prompt.classList.add("roman");
+      sub.textContent = "맞는 글자는?";
+      renderChoices(item, c => c.front, c => c.back === item.back);
+    }
+  } else if (mode === "typing") {
+    prompt.textContent = item.front;
+    if (vocab) prompt.classList.add("word");
+    sub.textContent = "로마자로 입력";
+    $("qTyping").classList.remove("hidden");
+    $("qInput").value = ""; $("qInput").focus();
+  } else if (mode === "listen") {
+    prompt.textContent = "🎧";
+    sub.textContent = vocab ? "들은 단어는? (🔊 다시 듣기)" : "들은 글자는? (🔊 다시 듣기)";
+    $("playBtn").classList.remove("hidden");
+    $("playBtn").onclick = () => speak(item.front);
+    renderChoices(item, vocab ? jpChoice : (c => c.front), vocab ? sameItem : (c => c.back === item.back));
+    setTimeout(() => speak(item.front), 250);
+  } else if (mode === "flash") {
+    // 익숙해지기: 채점 없이 글자 크게 + 읽기 보여주고 소리 재생 → 눈과 귀에 익히기
+    prompt.textContent = item.front;
+    if (vocab) prompt.classList.add("word");
+    sub.innerHTML = `<span class="reading">${item.back}</span>${item.ko ? ` · ${item.ko}` : ""}`;
+    $("playBtn").classList.remove("hidden");
+    $("playBtn").onclick = () => speak(item.front);
+    $("qFeedback").innerHTML = item.origin ? `<span style="color:var(--sub)">유래 ${item.origin}</span>` : "";
+    $("qNextHint").textContent = "보고 소리 들었으면 · 클릭 또는 Enter로 다음";
+    state.answered = true; // 채점 대상이 아님 — 바로 넘어갈 수 있게
+    setTimeout(() => { document.addEventListener("click", next, { once: true }); document.addEventListener("keydown", nextOnEnter); }, 120);
+    setTimeout(() => speak(item.front), 250);
+  }
+}
+
+function renderChoices(target, labelFn, isCorrectFn) {
+  const box = $("qChoices");
+  box.classList.remove("hidden");
+  box.innerHTML = "";
+  const seen = new Set([target.back]);
+  const distractors = [];
+  for (const it of shuffle([...filteredItems()])) {
+    if (distractors.length >= 3) break;
+    if (seen.has(it.back)) continue;
+    seen.add(it.back); distractors.push(it);
+  }
+  for (const c of shuffle([target, ...distractors])) {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.innerHTML = labelFn(c);
+    btn._item = c;                     // 어떤 항목인지 기억 (뜻 고르기 등 모드 무관 하이라이트용)
+    btn._correct = isCorrectFn(c);
+    btn.onclick = () => answerChoice(btn, btn._correct, target, c);
+    box.appendChild(btn);
+  }
+}
+
+function answerChoice(btn, isCorrect, item, chosen) {
+  if (state.answered) return;
+  state.answered = true;
+  const box = $("qChoices");
+  box.querySelectorAll(".choice").forEach(b => b.disabled = true);
+  btn.classList.add(isCorrect ? "correct" : "wrong");
+  if (!isCorrect) {  // 정답 보기도 초록으로 (항목 기준 — 뜻/일본어 어느 모드든 정확)
+    box.querySelectorAll(".choice").forEach(b => { if (b._correct) b.classList.add("correct"); });
+  }
+  finishAnswer(isCorrect, item, chosen);
+}
+
+$("qSubmit").onclick = submitTyping;
+$("qInput").addEventListener("keydown", e => { if (e.key === "Enter") submitTyping(); });
+function submitTyping() {
+  if (state.answered) return;
+  const { item } = state.queue[state.idx];
+  const raw = $("qInput").value.trim().toLowerCase();
+  if (!raw) return;
+  state.answered = true;
+  const ok = raw === item.back || (ROMAJI_ALT[item.back] || []).includes(raw) || (item.ko && raw === item.ko);
+  finishAnswer(ok, item);
+}
+
+function finishAnswer(isCorrect, item, chosen) {
+  const { mode } = state.queue[state.idx];
+  if (isCorrect) state.correct++;
+  else state.wrong.push(item);
+  $("qScore").textContent = `정답 ${state.correct}`;
+  // 오답으로 고른 보기가 실제로 무엇이었는지도 보여준다 (오답 보기도 학습 기회)
+  const pickedLine = (!isCorrect && chosen && chosen.id !== item.id)
+    ? `<div class="picked">고른 답 <b>${chosen.front}</b> = ${chosen.back}${chosen.ko ? ` (${chosen.ko})` : ""}</div>`
+    : "";
+  $("qFeedback").innerHTML = (isCorrect ? `<span class="ok">정답!</span>` : `<span class="no">오답.</span>`) +
+    ` ${item.front} = ${item.back}${item.ko ? ` (${item.ko})` : ""}${item.origin ? ` · ${item.origin} 유래` : ""}` +
+    pickedLine;
+  $("qNextHint").textContent = "클릭 또는 Enter로 다음 문제";
+  fetch("/api/answer", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deck: state.deck.id, item: item.id, mode, correct: isCorrect,
+      ms: Date.now() - state.qStart }),
+  }).then(r => r.json()).then(s => { state.srs[state.deck.id + ":" + item.id] = s; }).catch(() => {});
+  setTimeout(() => {
+    document.addEventListener("click", next, { once: true });
+    document.addEventListener("keydown", nextOnEnter);
+  }, 60);
+}
+function nextOnEnter(e) { if (e.key === "Enter") { e.preventDefault(); next(); } }
+function next() {
+  // 엔터로 넘어가도, 클릭으로 넘어가도 두 리스너를 반드시 함께 제거.
+  // (엔터로 넘겼을 때 클릭 리스너가 살아남아 다음 문제에서 채점 즉시 스킵되던 버그 — 2026-07-18)
+  document.removeEventListener("keydown", nextOnEnter);
+  document.removeEventListener("click", next);
+  if (!state.answered) return;
+  state.idx++;
+  if (state.idx >= state.queue.length) showResult();
+  else render();
+}
+
+function showResult() {
+  show("result");
+  const total = state.queue.length;
+  if (state.mode === "flash") { // 익숙해지기 — 점수 없이 마무리
+    $("rScore").textContent = `${total}자 👀`;
+    $("rSub").textContent = "다 봤어! 눈과 귀에 익혔으면 이제 퀴즈로 확인해보자";
+    $("rWeakWrap").classList.add("hidden");
+    return;
+  }
+  const pct = Math.round(state.correct / total * 100);
+  $("rScore").textContent = `${state.correct} / ${total}`;
+  $("rSub").textContent = pct >= 90 ? `정답률 ${pct}% — すごい！🎉` :
+                          pct >= 70 ? `정답률 ${pct}% — 좋아, 틀린 것만 다시 잡자` :
+                          `정답률 ${pct}% — 괜찮아, 반복이 답이다`;
+  const wrap = $("rWeakWrap"), table = $("rWeakTable");
+  if (!state.wrong.length) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const uniq = [...new Map(state.wrong.map(it => [it.id, it])).values()];
+  table.innerHTML = "<tr><th>항목</th><th>정답</th></tr>" +
+    uniq.map(it => `<tr><td class="kana-cell">${it.front}</td><td>${it.back}${it.ko ? ` (${it.ko})` : ""}</td></tr>`).join("");
+}
+
+loadHome();
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가사 헬퍼</title>
+<style>
+  :root {
+    --bg: #14161b; --card: #1d2027; --text: #eceae4; --sub: #a4a29a;
+    --accent: #e5735f; --ok: #57c78a; --border: #33373f; --btn: #272b34;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; min-height: 100vh; padding: 24px 12px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .subtitle { color: var(--sub); font-size: 15px; margin-bottom: 18px; word-break: keep-all; }
+  .cols { display: flex; gap: 14px; align-items: flex-start; }
+  @media (max-width: 800px) { .cols { flex-direction: column; } }
+  .left { flex: 1; min-width: 280px; }
+  .right { flex: 1.4; min-width: 300px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 12px; }
+  .section-label { font-size: 15px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+  .song-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: var(--btn); }
+  .song-row .t { font-weight: 700; font-size: 16px; flex: 1; min-width: 0; word-break: keep-all; }
+  .song-row .m { color: var(--sub); font-size: 13px; }
+  .mini-btn { padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 14px; white-space: nowrap; }
+  .mini-btn:hover { border-color: var(--accent); }
+  .mini-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .mini-btn:disabled { opacity: .5; cursor: default; }
+  .url-row { display: flex; gap: 8px; }
+  .url-row input { flex: 1; padding: 11px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--btn); color: var(--text); }
+  textarea#result {
+    width: 100%; min-height: 420px; padding: 14px; font-size: 17px; line-height: 1.9;
+    font-family: "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif;
+    background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 10px; resize: vertical;
+  }
+  .status { font-size: 14px; color: var(--sub); margin-top: 8px; min-height: 20px; }
+  .btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+<div class="app">
+  <h1>가사 헬퍼 🔎</h1>
+  <div class="subtitle">[가사 불러오기]를 누르면 우타텐에서 원문을 가져와 오른쪽 창에 띄운다. 복사하거나, 한 번에 노래로공부에 등록.</div>
+
+  <div class="cols">
+    <div class="left">
+      <div class="card">
+        <div class="section-label">등록된 노래</div>
+        <div id="songList">불러오는 중...</div>
+      </div>
+      <div class="card">
+        <div class="section-label">우타텐 주소 직접 입력</div>
+        <div class="url-row">
+          <input id="urlInput" placeholder="https://utaten.com/lyric/...">
+          <button class="mini-btn" id="urlFetch">불러오기</button>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="card">
+        <div class="section-label">가사 원문 (복사 가능)</div>
+        <textarea id="result" placeholder="왼쪽에서 [가사 불러오기]를 누르면 여기 뜬다"></textarea>
+        <div class="btns">
+          <button class="mini-btn" id="copyBtn">전체 복사</button>
+          <button class="mini-btn accent" id="registerBtn" disabled>이 곡의 노래로공부에 등록</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+let songs = [], sourceSong = null; // 어느 곡의 버튼으로 불러왔는지
+
+const $ = id => document.getElementById(id);
+
+async function fetchLyrics(url, song) {
+  $("status").textContent = "가져오는 중...";
+  $("registerBtn").disabled = true;
+  sourceSong = song || null;
+  const r = await fetch("/api/lyrics-fetch?url=" + encodeURIComponent(url)).catch(() => null);
+  if (!r) { $("status").textContent = "서버 연결 실패"; return; }
+  const d = await r.json();
+  if (!r.ok) { $("status").textContent = "실패: " + (d.error || r.status); return; }
+  $("result").value = d.text;
+  $("status").textContent = `가져옴 (${d.text.split("\n").length}줄)` + (song ? ` — [등록] 버튼으로 "${song.song}"에 바로 넣을 수 있다` : "");
+  if (song) $("registerBtn").disabled = false;
+}
+
+$("copyBtn").onclick = async () => {
+  const t = $("result").value;
+  if (!t) return;
+  try { await navigator.clipboard.writeText(t); $("status").textContent = "복사됨 ✓"; }
+  catch { $("result").select(); document.execCommand("copy"); $("status").textContent = "복사됨 ✓"; }
+};
+
+$("registerBtn").onclick = async () => {
+  if (!sourceSong || !$("result").value.trim()) return;
+  const r = await fetch("/api/songs/lyric", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: sourceSong.id, lyric: $("result").value.trim() }),
+  }).catch(() => null);
+  $("status").textContent = (r && r.ok)
+    ? `등록 완료 ✓ — 노래 탭에서 "${sourceSong.song}"을 열면 줄별로 떠 있다`
+    : "등록 실패";
+};
+
+$("urlFetch").onclick = () => {
+  const url = $("urlInput").value.trim();
+  if (url) fetchLyrics(url, null);
+};
+
+fetch("/api/songs").then(r => r.json()).then(list => {
+  songs = list;
+  const box = $("songList");
+  box.innerHTML = list.length ? "" : "노래 탭에 등록된 곡이 없다.";
+  for (const s of list) {
+    const row = document.createElement("div");
+    row.className = "song-row";
+    row.innerHTML = `<span class="t">${s.song}</span><span class="m">${s.artist}</span>`;
+    if (s.lyricUrl && !s.lyric) {
+      const auto = document.createElement("button");
+      auto.className = "mini-btn accent";
+      auto.textContent = "⚡ 원클릭 세팅";
+      auto.title = "가사 로드 → 등록 → 공식 자막 싱크까지 한 번에";
+      auto.onclick = async () => {
+        auto.textContent = "세팅 중... (몇 초)";
+        auto.disabled = true;
+        const r = await fetch("/api/songs/setup", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: s.id }),
+        }).catch(() => null);
+        const d = r ? await r.json() : {};
+        if (r && r.ok) {
+          auto.textContent = d.aligned ? "완성 ✓ (노래 탭으로)" : "등록 ✓ (해석 대기)";
+          $("status").textContent = `${s.song}: ${d.rows}행 · 자막(${d.subLang || "없음"}) · ${d.next}`;
+        } else {
+          auto.textContent = "실패";
+          $("status").textContent = d.error || "세팅 실패";
+        }
+      };
+      row.appendChild(auto);
+    }
+    const btn = document.createElement("button");
+    btn.className = "mini-btn";
+    if (s.lyricUrl) {
+      btn.textContent = "가사 불러오기";
+      btn.onclick = () => fetchLyrics(s.lyricUrl, s);
+    } else {
+      btn.textContent = "주소 없음";
+      btn.disabled = true;
+      btn.title = "튜터에게 '이 곡 우타텐 주소 등록해줘'라고 하면 연결된다";
+    }
+    row.appendChild(btn);
+    box.appendChild(row);
+  }
+});
+</script>
+</body>
+</html>
