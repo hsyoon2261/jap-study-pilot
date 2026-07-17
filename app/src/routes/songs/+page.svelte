@@ -13,17 +13,23 @@
 	let detail = $state<number | null>(null);
 	let player: any = null;
 	let ytReady = false;
+	let apiFailed = $state(false);
 	let tick: any = null;
 
 	const readingOf = (s: string) => (s||'')
 		.replace(/[一-龥々〆ヶ]+（([^（）]+)）/g, '$1').replace(/（[^）]*）/g, '');
+	const watchUrl = (s: Song | null) => s ? `https://www.youtube.com/watch?v=${s.videoId}` : '#';
 
 	onMount(async () => {
 		songs = await fetch('/content/songs.json').then(r => r.json());
 		// YouTube IFrame API
 		(window as any).onYouTubeIframeAPIReady = () => { ytReady = true; if (cur) mount(cur); };
 		if (!(window as any).YT) {
-			const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+			const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
+			s.onerror = () => { apiFailed = true; };
+			document.head.appendChild(s);
+			// 6초 안에 API가 안 뜨면(광고차단·네트워크) 폴백 안내
+			setTimeout(() => { if (!ytReady) apiFailed = true; }, 6000);
 		} else { ytReady = true; }
 		const first = songs.find(s => s.lyric) || songs[0];
 		if (first) select(first);
@@ -75,6 +81,13 @@
 
 	{#if cur}
 		<div class="player"><div id="yt"></div></div>
+		<div class="phint">
+			<span>▶ 재생 버튼을 누르거나 <b>가사 줄을 클릭</b>하면 그 지점부터 소리와 함께 재생돼.</span>
+			<a class="ytlink" href={watchUrl(cur)} target="_blank" rel="noopener">유튜브에서 열기 ↗</a>
+		</div>
+		{#if apiFailed}
+			<div class="fallback">플레이어가 안 뜨면(광고 차단·네트워크) 위 <b>유튜브에서 열기</b>로 들어. 가사 해설은 여기서 계속 볼 수 있어.</div>
+		{/if}
 		{#if lines.length}
 			<div class="lyrics">
 				{#each lines as l, i (i)}
@@ -115,6 +128,12 @@
 	.spick .sa { color: var(--sub); font-size: 12px; }
 	.player { position: relative; width: 100%; max-width: 900px; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
 	.player :global(iframe) { position: absolute; inset: 0; width: 100%; height: 100%; }
+	.phint { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: -4px 0 14px; color: var(--sub); font-size: 13.5px; }
+	.phint b { color: var(--text); }
+	.ytlink { flex-shrink: 0; padding: 8px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--btn); color: var(--accent); font-weight: 600; font-size: 13px; }
+	.ytlink:hover { border-color: var(--accent); }
+	.fallback { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 14px; font-size: 14px; margin-bottom: 14px; }
+	.fallback b { color: var(--accent); }
 	.lyrics { border-top: 1px solid var(--border); padding-top: 12px; }
 	.line { margin-bottom: 10px; padding: 7px 10px; border-radius: 10px; border-left: 3px solid transparent; }
 	.line.now { background: var(--btn); border-left-color: var(--accent); }

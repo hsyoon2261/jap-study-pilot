@@ -198,64 +198,99 @@
 	const uniqWrong = $derived([...new Map(wrong.map((it) => [it.id, it])).values()]);
 </script>
 
-<div class="page">
+<div class="drill-shell">
 	{#if phase === 'loading'}
-		<p class="page-sub" style="margin-top:40px">불러오는 중…</p>
+		<div class="quiz-card centered"><p class="muted">불러오는 중…</p></div>
 	{:else if phase === 'quiz'}
-		<div class="top"><span>{idx + 1} / {total}</span><span>정답 {correct}</span></div>
-		<div class="prompt {promptClass}">{promptText}</div>
-		<div class="sub">{@html subHtml}</div>
-
-		{#if showPlay}
-			<button class="play" onclick={(e) => { e.stopPropagation(); speak(queue[idx].item.front); }}>🔊 다시 듣기</button>
-		{/if}
-
-		{#if choices.length}
-			<div class="choices">
-				{#each choices as c, i (i)}
-					<button class="choice {c.cls}" disabled={answered} onclick={() => pickChoice(i)}>{@html c.label}</button>
-				{/each}
+		<div class="quiz-card">
+			<div class="top">
+				<span>{idx + 1} / {total}</span>
+				<span class="score">정답 {correct}</span>
 			</div>
-		{/if}
+			<div class="bar"><span style="width:{total ? (idx / total) * 100 : 0}%"></span></div>
+			<div class="body">
+				<div class="prompt {promptClass}">{promptText}</div>
+				<div class="sub">{@html subHtml}</div>
 
-		{#if showTyping}
-			<div class="typing">
-				<input bind:this={typingEl} bind:value={typingValue} disabled={answered}
-					onkeydown={(e) => { if (e.key === 'Enter') submitTyping(); }} placeholder="로마자 입력 후 Enter" autocomplete="off" />
-				<button onclick={submitTyping} disabled={answered}>확인</button>
+				{#if showPlay}
+					<button class="play" onclick={(e) => { e.stopPropagation(); speak(queue[idx].item.front); }}>🔊 다시 듣기</button>
+				{/if}
+
+				{#if choices.length}
+					<div class="choices">
+						{#each choices as c, i (i)}
+							<button class="choice {c.cls}" disabled={answered} onclick={() => pickChoice(i)}>{@html c.label}</button>
+						{/each}
+					</div>
+				{/if}
+
+				{#if showTyping}
+					<div class="typing">
+						<input bind:this={typingEl} bind:value={typingValue} disabled={answered}
+							onkeydown={(e) => { if (e.key === 'Enter') submitTyping(); }} placeholder="로마자 입력 후 Enter" autocomplete="off" />
+						<button onclick={submitTyping} disabled={answered}>확인</button>
+					</div>
+				{/if}
 			</div>
-		{/if}
-
-		<div class="feedback">{@html feedbackHtml}</div>
-		<div class="hint">{hintText}</div>
+			<div class="foot">
+				<div class="feedback">{@html feedbackHtml}</div>
+				<div class="hint">{hintText}</div>
+			</div>
+		</div>
 	{:else}
-		<h1 class="page-title">{errorMsg ? '' : (isFlash ? `${total}자 👀` : `${correct} / ${total}`)}</h1>
-		{#if errorMsg}
-			<p class="page-sub" style="margin-top:30px">{errorMsg}</p>
-		{:else if isFlash}
-			<p class="page-sub">다 봤어! 눈과 귀에 익혔으면 이제 퀴즈로 확인해보자.</p>
-		{:else}
-			<p class="page-sub">{pct >= 90 ? `정답률 ${pct}% — すごい！🎉` : pct >= 70 ? `정답률 ${pct}% — 좋아, 틀린 것만 다시 잡자` : `정답률 ${pct}% — 괜찮아, 반복이 답이다`}</p>
-			{#if uniqWrong.length}
-				<div class="weak">
-					<div class="block-h">다시 볼 것</div>
-					{#each uniqWrong as it (it.id)}
-						<div class="wrow"><span class="jp">{it.front}</span><span>{it.back}{it.ko ? ` (${it.ko})` : ''}</span></div>
-					{/each}
-				</div>
+		<div class="quiz-card result">
+			<h1 class="score-big">{errorMsg ? '⚠' : (isFlash ? `${total}자 👀` : `${correct} / ${total}`)}</h1>
+			{#if errorMsg}
+				<p class="muted">{errorMsg}</p>
+			{:else if isFlash}
+				<p class="muted">다 봤어! 눈과 귀에 익혔으면 이제 퀴즈로 확인해보자.</p>
+			{:else}
+				<p class="muted">{pct >= 90 ? `정답률 ${pct}% — すごい！🎉` : pct >= 70 ? `정답률 ${pct}% — 좋아, 틀린 것만 다시 잡자` : `정답률 ${pct}% — 괜찮아, 반복이 답이다`}</p>
+				{#if uniqWrong.length}
+					<div class="weak">
+						<div class="block-h">다시 볼 것 (복습 대기열로)</div>
+						{#each uniqWrong as it (it.id)}
+							<div class="wrow"><span class="jp">{it.front}</span><span>{it.back}{it.ko ? ` (${it.ko})` : ''}</span></div>
+						{/each}
+					</div>
+				{/if}
 			{/if}
-		{/if}
-		<div class="actions">
-			<a class="btn" href="/">← 오늘로</a>
+			<div class="actions"><a class="btn" href="/">← 오늘로</a></div>
 		</div>
 	{/if}
 </div>
 
 <style>
-	.top { display: flex; justify-content: space-between; color: var(--sub); font-size: 13px; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
-	.prompt { text-align: center; font-size: 96px; font-weight: 500; padding: 26px 0 8px; font-family: var(--jp); }
-	.prompt.roman { font-size: 50px; padding: 40px 0 20px; }
-	.prompt.word { font-size: 62px; padding: 30px 0 4px; }
+	/* 집중형 카드: 화면 중앙, 폭 제한 (보기 버튼이 과하게 넓어지지 않게) */
+	.drill-shell {
+		min-height: calc(100dvh - 44px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 22px 18px;
+	}
+	.quiz-card {
+		width: 100%;
+		max-width: 560px;
+		min-height: 500px;
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: 18px;
+		padding: 22px 26px 20px;
+		display: flex;
+		flex-direction: column;
+	}
+	.quiz-card.centered { align-items: center; justify-content: center; }
+	.muted { color: var(--sub); font-size: 15px; }
+	.body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+	.foot { margin-top: auto; }
+	.bar { height: 4px; border-radius: 4px; background: var(--btn); overflow: hidden; margin-bottom: 6px; }
+	.bar span { display: block; height: 100%; background: var(--accent); transition: width .25s ease; }
+	.top { display: flex; justify-content: space-between; color: var(--sub); font-size: 13px; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+	.top .score { color: var(--ok); }
+	.prompt { text-align: center; font-size: 92px; font-weight: 500; padding: 12px 0 6px; font-family: var(--jp); line-height: 1.1; }
+	.prompt.roman { font-size: 46px; padding: 24px 0 14px; }
+	.prompt.word { font-size: 58px; padding: 18px 0 4px; }
 	.sub { text-align: center; color: var(--sub); font-size: 16px; margin-bottom: 22px; min-height: 20px; }
 	.sub :global(.reading) { color: var(--accent); font-size: 23px; font-weight: 600; }
 	.play { display: block; margin: 0 auto 20px; padding: 16px 30px; font-size: 28px; border-radius: 50px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; }
@@ -275,10 +310,24 @@
 	.feedback :global(.picked b) { color: var(--accent); }
 	.feedback :global(.dim) { color: var(--sub); }
 	.hint { text-align: center; color: var(--sub); font-size: 12px; margin-top: 8px; min-height: 16px; }
-	.weak { margin-top: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
-	.block-h { font-size: 14px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+	/* 결과 카드 */
+	.quiz-card.result { justify-content: center; text-align: center; }
+	.score-big { font-size: 46px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; }
+	.result .muted { margin-bottom: 4px; }
+	.weak { margin-top: 22px; text-align: left; background: var(--btn); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+	.block-h { font-size: 13px; font-weight: 700; color: var(--sub); margin-bottom: 8px; }
 	.wrow { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
 	.wrow .jp { font-family: var(--jp); font-size: 22px; }
-	.actions { margin-top: 26px; }
-	.btn { display: inline-block; padding: 12px 20px; border-radius: 10px; border: 1px solid var(--border); background: var(--btn); color: var(--accent); font-weight: 700; }
+	.actions { margin-top: 24px; }
+	.btn { display: inline-block; padding: 12px 22px; border-radius: 10px; border: 1px solid var(--border); background: var(--btn); color: var(--accent); font-weight: 700; }
+
+	/* 모바일: 카드가 폭을 꽉 채우고 위에서부터 (하단 탭바 고려) */
+	@media (max-width: 700px) {
+		.drill-shell { min-height: 0; align-items: stretch; padding: 14px 12px 20px; }
+		.quiz-card { max-width: none; min-height: calc(100dvh - 100px); border-radius: 16px; padding: 18px 18px 16px; }
+		.prompt { font-size: 78px; }
+		.prompt.word { font-size: 50px; }
+		.prompt.roman { font-size: 40px; }
+		.choice { font-size: 24px; padding: 16px 6px; }
+	}
 </style>

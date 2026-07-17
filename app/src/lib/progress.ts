@@ -30,8 +30,9 @@ export function srsKey(deck: string, itemId: string) {
 	return deck + ':' + itemId;
 }
 
+const KST = 32400000; // UTC+9 (ms) — 서버(D1)와 동일 기준으로 맞춰 due 비교 skew 방지
 export function nowIso() {
-	return new Date().toISOString().slice(0, 19);
+	return new Date(Date.now() + KST).toISOString().slice(0, 19);
 }
 
 // 답안 기록 + SRS 갱신
@@ -67,7 +68,7 @@ export function recordAnswer(
 		s.box = Math.max(0, s.box - 1);
 	}
 	const days = INTERVALS[s.box];
-	const due = new Date(Date.now() + days * 86400000);
+	const due = new Date(Date.now() + KST + days * 86400000);
 	s.due = due.toISOString().slice(0, 19);
 	s.last = nowIso();
 	srs[key] = s;
