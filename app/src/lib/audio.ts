@@ -6,8 +6,8 @@
 
 export type VoiceOpt = { id: string; label: string; desc: string };
 export const VOICE_LIST: VoiceOpt[] = [
-	{ id: '', label: '기본 (원어민+합성)', desc: '한 글자는 원어민 녹음, 단어·문장은 기본 합성음' },
-	{ id: 'mao', label: '마오 (여) ⭐', desc: '자연스럽고 따뜻한 여성 (빌드에 내장)' }
+	{ id: '', label: '기기 내장 음성 (기본)', desc: '기기에 깔린 일본어 음성으로 읽음 — 가벼움, 기기마다 목소리 다름' },
+	{ id: 'mao', label: '마오 (여) ⭐', desc: '빌드에 내장한 자연스러운 여성 — 어디서나 같은 소리 (admin 전용)' }
 ];
 
 const manifests: Record<string, Record<string, string> | undefined> = {};

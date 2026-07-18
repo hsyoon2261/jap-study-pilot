@@ -50,7 +50,7 @@
 	{#if loaded && isAdmin}
 		<div class="card">
 			<div class="h">발음 음성 고르기 <span class="admin">admin 전용</span></div>
-			<p class="desc">빌드에 내장한 음성이라 어느 기기에서나 같은 소리. ▶로 들어보고 줄을 눌러 선택.</p>
+			<p class="desc">기본은 기기 내장 일본어 음성(가벼움). 마오는 빌드에 내장해 어디서나 같은 소리 — admin만 쓸 수 있어. ▶로 들어보고 줄을 눌러 선택.</p>
 			<div class="voices">
 				{#each VOICE_LIST as v (v.id)}
 					<div class="voice" class:cur={sel === v.id}>
