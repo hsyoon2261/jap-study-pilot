@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { enforceVoiceAccess } from '$lib/audio';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -13,6 +14,7 @@
 		try {
 			const r = await fetch('/api/me');
 			authed = r.ok;
+			if (r.ok) { const d = await r.json(); enforceVoiceAccess(d.username === 'admin'); }
 		} catch { authed = false; }
 		if (!authed) { location.href = '/login'; return; }
 		ready = true;

@@ -26,6 +26,11 @@ export function setSelectedVoice(id: string) {
 	selectedVoice = id || '';
 	try { localStorage.setItem(VOICE_KEY, selectedVoice); } catch { /* */ }
 }
+// admin 전용 성우. 비-admin 계정이 (공용 기기 등에서) 이 성우가 선택돼 있으면 기본으로 되돌린다.
+const ADMIN_ONLY = new Set(['mao']);
+export function enforceVoiceAccess(isAdmin: boolean) {
+	if (!isAdmin && ADMIN_ONLY.has(selectedVoice)) setSelectedVoice('');
+}
 
 function manifestUrl(slug: string) { return slug ? `/audio/${slug}/manifest.json` : '/audio/manifest.json'; }
 function fileUrl(slug: string, file: string) { return slug ? `/audio/${slug}/${file}` : `/audio/${file}`; }
