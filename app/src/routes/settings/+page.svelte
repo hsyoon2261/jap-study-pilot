@@ -1,21 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { speak, listVoices, getSelectedVoice, setSelectedVoice, onVoicesReady } from '$lib/audio';
+	import { speak, VOICE_LIST, getSelectedVoice, setSelectedVoice } from '$lib/audio';
 
 	let username = $state('');
 	let loaded = $state(false);
 	let busy = $state(false);
-	let voices = $state<{ id: string; label: string }[]>([]);
 	let sel = $state('');
 
 	const SAMPLE = 'こんにちは。今日も一緒にがんばりましょう。';
 	const isAdmin = $derived(username === 'admin');
 
-	function refreshVoices() { voices = listVoices(); sel = getSelectedVoice(); }
-
 	onMount(async () => {
-		refreshVoices();
-		onVoicesReady(refreshVoices);
+		sel = getSelectedVoice();
 		try {
 			const r = await fetch('/api/me');
 			if (r.ok) { const d = await r.json(); username = d.username || ''; }
@@ -54,12 +50,15 @@
 	{#if loaded && isAdmin}
 		<div class="card">
 			<div class="h">발음 음성 고르기 <span class="admin">admin 전용</span></div>
-			<p class="desc">기본은 미리 녹음한 고음질 음성. 원하면 기기에 깔린 일본어 음성으로 바꿀 수 있어 (기기마다 목록이 다름). ▶로 들어보고 줄을 눌러 선택.</p>
+			<p class="desc">빌드에 내장한 음성이라 어느 기기에서나 같은 소리. ▶로 들어보고 줄을 눌러 선택.</p>
 			<div class="voices">
-				{#each voices as v (v.id)}
+				{#each VOICE_LIST as v (v.id)}
 					<div class="voice" class:cur={sel === v.id}>
 						<button class="vplay" onclick={(e) => { e.stopPropagation(); preview(v.id); }} title="들어보기">▶</button>
-						<button class="vname" onclick={() => pick(v.id)}>{v.label}</button>
+						<button class="vname" onclick={() => pick(v.id)}>
+							<span class="vl">{v.label}</span>
+							<span class="vd">{v.desc}</span>
+						</button>
 						{#if sel === v.id}<span class="vcur">사용 중</span>{/if}
 					</div>
 				{/each}
@@ -84,8 +83,10 @@
 	.voice.cur { border-color: var(--ok); }
 	.vplay { flex-shrink: 0; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px; }
 	.vplay:hover { border-color: var(--accent); }
-	.vname { flex: 1; min-width: 0; text-align: left; background: none; border: none; color: var(--text); cursor: pointer; font-size: 15px; font-weight: 600; }
-	.vcur { color: var(--ok); font-size: 12.5px; font-weight: 700; flex-shrink: 0; }
+	.vname { flex: 1; min-width: 0; text-align: left; background: none; border: none; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+	.vname .vl { font-size: 15px; font-weight: 700; }
+	.vname .vd { font-size: 12.5px; color: var(--sub); font-weight: 400; line-height: 1.4; word-break: keep-all; }
+	.vcur { color: var(--ok); font-size: 12.5px; font-weight: 700; flex-shrink: 0; align-self: center; }
 	.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
 	.row:first-child { padding-top: 0; }
 	.row:last-of-type { border-bottom: none; }

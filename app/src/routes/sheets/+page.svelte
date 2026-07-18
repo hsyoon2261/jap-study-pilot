@@ -31,6 +31,11 @@
 		<p class="page-sub" style="margin-top:24px">아직 학습지가 없어.</p>
 	{:else}
 		<div class="list">
+			<a class="card day0" href="/chart">
+				<div class="day">Day 0 · 기초</div>
+				<div class="t">가나 학습표 📖</div>
+				<div class="meta">히라가나·가타카나·요음·촉음/장음/ん — 글자를 눌러 발음 듣기</div>
+			</a>
 			{#each sheets as s (s.day)}
 				{@const c = counts(s)}
 				<a class="card" href={`/sheet?day=${s.day}`}>
@@ -47,6 +52,7 @@
 	.list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
 	.card { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
 	.card:hover { border-color: var(--accent); }
+	.card.day0 { background: linear-gradient(180deg, var(--card), var(--btn)); border-color: var(--accent); }
 	.day { font-size: 13.5px; color: var(--accent); font-weight: 700; }
 	.t { font-size: 18px; font-weight: 700; margin: 3px 0; word-break: keep-all; }
 	.meta { font-size: 14px; color: var(--sub); }

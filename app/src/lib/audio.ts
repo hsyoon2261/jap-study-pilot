@@ -1,54 +1,25 @@
-// 정적 배포용 발음.
-// - 기본: /audio/manifest.json (한 글자=원어민 녹음 + 단어·문장=기본 음성). 서버 없이 최고 음질.
-// - (admin이 설정에서 고른 경우) 브라우저 내장 일본어 음성으로 전부 재생.
-// 캐릭터 성우 로스터는 배포 안 함(용량·취향). 성우 선택 = 기기의 일반 TTS 음성 중에서.
-let manifest: Record<string, string> | null = null;
-let loading: Promise<void> | null = null;
+// 정적 배포용 발음. 성우 오디오를 빌드에 구워 내장한다(기기 목록에 의존 X).
+// - 기본(''):   /audio/manifest.json     (한 글자=원어민 녹음 + 단어·문장=기본 음성)
+// - 마오('mao'): /audio/mao/manifest.json (전부 마오로 구운 mp3, 빌드에 내장)
+// 마오는 admin만 설정에서 고를 수 있다(내장은 되어 있고, 일반 계정엔 선택 UI가 안 뜸).
+// 구운 파일에 없는 텍스트는 기본 → 브라우저 내장 음성 순으로 폴백.
+
+export type VoiceOpt = { id: string; label: string; desc: string };
+export const VOICE_LIST: VoiceOpt[] = [
+	{ id: '', label: '기본 (원어민+합성)', desc: '한 글자는 원어민 녹음, 단어·문장은 기본 합성음' },
+	{ id: 'mao', label: '마오 (여) ⭐', desc: '자연스럽고 따뜻한 여성 (빌드에 내장)' }
+];
+
+const manifests: Record<string, Record<string, string> | undefined> = {};
+const loadingM: Record<string, Promise<Record<string, string>> | undefined> = {};
 const cache: Record<string, HTMLAudioElement> = {};
 let current: HTMLAudioElement | null = null;
 let seq = 0;
 
-const VOICE_KEY = 'jsp_voice_v1'; // '' = 기본(구운 음성), 그 외 = 브라우저 음성 이름
+const VOICE_KEY = 'jsp_voice_v1';
 let selectedVoice = '';
 if (typeof localStorage !== 'undefined') {
 	try { selectedVoice = localStorage.getItem(VOICE_KEY) || ''; } catch { selectedVoice = ''; }
-}
-
-async function ensureManifest() {
-	if (manifest) return;
-	if (!loading) {
-		loading = fetch('/audio/manifest.json')
-			.then((r) => r.json())
-			.then((m) => { manifest = m; })
-			.catch(() => { manifest = {}; });
-	}
-	await loading;
-}
-
-// ── 브라우저 일본어 음성 (기기 내장 일반 TTS) ──
-function jaVoices(): SpeechSynthesisVoice[] {
-	if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
-	return speechSynthesis.getVoices().filter((v) => (v.lang || '').toLowerCase().startsWith('ja'));
-}
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-	speechSynthesis.onvoiceschanged = () => { /* 목록 준비되면 갱신됨 */ };
-	jaVoices();
-}
-// 설정(admin)용: 선택 가능한 음성 목록 (기본 + 기기 일본어 음성)
-export function listVoices(): { id: string; label: string }[] {
-	const out = [{ id: '', label: '기본 (미리 녹음 · 고음질)' }];
-	for (const v of jaVoices()) {
-		const short = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Japanese.*/i, '').replace(/\s*\(.*\)$/, '').trim();
-		out.push({ id: v.name, label: short || v.name });
-	}
-	return out;
-}
-export function onVoicesReady(cb: () => void) {
-	if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-	if (jaVoices().length) { cb(); return; }
-	const prev = speechSynthesis.onvoiceschanged;
-	speechSynthesis.onvoiceschanged = (e) => { if (typeof prev === 'function') (prev as any).call(speechSynthesis, e); cb(); };
-	setTimeout(cb, 1200);
 }
 export function getSelectedVoice() { return selectedVoice; }
 export function setSelectedVoice(id: string) {
@@ -56,15 +27,37 @@ export function setSelectedVoice(id: string) {
 	try { localStorage.setItem(VOICE_KEY, selectedVoice); } catch { /* */ }
 }
 
-function speakBrowser(text: string, voiceName: string, slow: boolean, onEnd?: () => void) {
-	if (typeof window === 'undefined' || !('speechSynthesis' in window)) { onEnd?.(); return; }
+function manifestUrl(slug: string) { return slug ? `/audio/${slug}/manifest.json` : '/audio/manifest.json'; }
+function fileUrl(slug: string, file: string) { return slug ? `/audio/${slug}/${file}` : `/audio/${file}`; }
+
+function ensureManifest(slug: string): Promise<Record<string, string>> {
+	if (manifests[slug]) return Promise.resolve(manifests[slug]!);
+	if (!loadingM[slug]) {
+		loadingM[slug] = fetch(manifestUrl(slug))
+			.then((r) => (r.ok ? r.json() : {}))
+			.then((m) => { manifests[slug] = m; return m; })
+			.catch(() => { manifests[slug] = {}; return {}; });
+	}
+	return loadingM[slug]!;
+}
+
+// 최종 폴백: 브라우저 내장 일본어 음성
+let jaVoice: SpeechSynthesisVoice | null = null;
+function pickJa() {
+	if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+	const vs = speechSynthesis.getVoices().filter((v) => (v.lang || '').toLowerCase().startsWith('ja'));
+	jaVoice = vs[0] || null;
+}
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+	speechSynthesis.onvoiceschanged = pickJa;
+	pickJa();
+}
+function speakBrowser(text: string, slow: boolean, onEnd?: () => void) {
+	if (typeof window === 'undefined' || !('speechSynthesis' in window) || !jaVoice) { onEnd?.(); return; }
 	speechSynthesis.cancel();
 	const u = new SpeechSynthesisUtterance(text);
-	const v = jaVoices().find((x) => x.name === voiceName) || jaVoices()[0];
-	if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'ja-JP';
-	u.rate = slow ? 0.55 : 0.85;
-	u.onend = () => onEnd?.();
-	u.onerror = () => onEnd?.();
+	u.voice = jaVoice; u.lang = jaVoice.lang; u.rate = slow ? 0.55 : 0.8;
+	u.onend = () => onEnd?.(); u.onerror = () => onEnd?.();
 	speechSynthesis.speak(u);
 }
 
@@ -74,33 +67,38 @@ export function stopSpeak() {
 	if (typeof window !== 'undefined' && 'speechSynthesis' in window && speechSynthesis.speaking) speechSynthesis.cancel();
 }
 
+function playFile(url: string, slow: boolean, onEnd: (() => void) | undefined, my: number): boolean {
+	try {
+		if (!cache[url]) cache[url] = new Audio(url);
+		if (my !== seq) return true;
+		if (current) { current.onended = null; current.pause(); }
+		current = cache[url];
+		current.currentTime = 0;
+		current.playbackRate = slow ? 0.75 : 1.0;
+		current.onended = () => { if (my === seq) { current = null; onEnd?.(); } };
+		current.play().catch(() => { if (my === seq) { current = null; onEnd?.(); } });
+		return true;
+	} catch { return false; }
+}
+
 export async function speak(text: string, opts?: { slow?: boolean; onEnd?: () => void }) {
 	if (!text) { opts?.onEnd?.(); return; }
 	const slow = !!opts?.slow;
 	const onEnd = opts?.onEnd;
 	const my = ++seq;
+	const slug = selectedVoice;
 
-	// admin이 브라우저 음성을 골랐으면 그걸로 (구운 음성 건너뜀)
-	if (selectedVoice) { speakBrowser(text, selectedVoice, slow, onEnd); return; }
-
-	// 기본: 미리 구운 manifest
-	await ensureManifest();
+	const m = await ensureManifest(slug);
 	if (my !== seq) return;
-	const file = manifest?.[text];
-	if (file) {
-		try {
-			if (!cache[text]) cache[text] = new Audio('/audio/' + file);
-			if (my !== seq) return;
-			if (current) { current.onended = null; current.pause(); }
-			current = cache[text];
-			current.currentTime = 0;
-			current.playbackRate = slow ? 0.75 : 1.0;
-			current.onended = () => { if (my === seq) { current = null; onEnd?.(); } };
-			await current.play();
-			return;
-		} catch { /* 폴백 */ }
+	if (m[text] && playFile(fileUrl(slug, m[text]), slow, onEnd, my)) return;
+
+	// 폴백1: 기본 성우 파일
+	if (slug) {
+		const dm = await ensureManifest('');
+		if (my !== seq) return;
+		if (dm[text] && playFile(fileUrl('', dm[text]), slow, onEnd, my)) return;
 	}
-	// 폴백: 브라우저 내장 음성
-	if (my === seq) speakBrowser(text, '', slow, onEnd);
+	// 폴백2: 브라우저 내장 음성
+	if (my === seq) speakBrowser(text, slow, onEnd);
 	else onEnd?.();
 }
