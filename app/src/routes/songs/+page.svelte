@@ -219,9 +219,8 @@
 	}
 	function onLineDbl(i: number) {
 		if (syncMode) return;
-		if (!cur?.lineTimes?.[i]) return;
 		if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-		openDetail(i);
+		openDetail(i);   // 싱크 전에도 단어·문법 상세는 열림(재생 버튼만 비활성)
 	}
 
 	async function openDetail(i: number) {
@@ -319,7 +318,7 @@
 							{@const hasTime = !!cur.lineTimes?.[i]}
 							<div class="line" class:now={nowIdx === i} class:seekable={hasTime || syncMode} class:tapnow={syncMode && syncPos === i} bind:this={lineEls[i]}>
 								<button class="jp" ondblclick={() => onLineDbl(i)} onclick={() => onLineClick(i)}
-									title={syncMode ? '탭: 이 소절 타이밍 기록' : (hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : '')}>
+									title={syncMode ? '탭: 이 소절 타이밍 기록' : (hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : '더블클릭: 단어·문법 상세')}>
 									{@html (n?.h) || l}{#if n?.cont}<span class="cont">→</span>{/if}
 								</button>
 								{#if n?.t}<div class="tr">{n.t}</div>{/if}
@@ -384,8 +383,7 @@
 	.line { margin-bottom: 10px; padding: 7px 10px; border-radius: 10px; border-left: 3px solid transparent; }
 	.line.now { background: var(--btn); border-left-color: var(--accent); }
 	.line:hover { background: rgba(255,255,255,.045); }
-	.jp { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); font-family: var(--jp); font-size: 29px; line-height: 1.9; user-select: none; }
-	.line.seekable .jp { cursor: pointer; }
+	.jp { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); font-family: var(--jp); font-size: 29px; line-height: 1.9; user-select: none; cursor: pointer; }
 	.jp :global(ruby) { white-space: nowrap; }
 	.jp :global(rt) { font-size: 13px; color: var(--accent); font-family: "Segoe UI", sans-serif; }
 	.cont { color: var(--sub); opacity: .5; font-size: 60%; }
