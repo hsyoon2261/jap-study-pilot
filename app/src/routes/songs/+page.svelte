@@ -15,6 +15,14 @@
 	let rowLoopOn = $state(false);
 	let apiFailed = $state(false);
 
+	// 탭 싱크 (admin 전용)
+	let isAdmin = $state(false);
+	let syncMode = $state(false);
+	let syncTimes = $state<number[]>([]);
+	let syncPos = $state(0);
+	let syncMsg = $state('');
+	let syncSaving = $state(false);
+
 	let player: any = null;
 	let ytReady = false;
 	let timer: any = null;
@@ -60,6 +68,8 @@
 
 	onMount(async () => {
 		songs = await fetch('/api/songs').then((r) => (r.ok ? r.json() : { songs: [] })).then((d) => d.songs || []);
+		fetch('/api/me').then((r) => (r.ok ? r.json() : null)).then((d) => { isAdmin = d?.username === 'admin'; }).catch(() => {});
+		window.addEventListener('keydown', onKey);
 		(window as any).onYouTubeIframeAPIReady = () => { ytReady = true; if (cur) mount(cur); };
 		if (!(window as any).YT) {
 			const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
@@ -102,7 +112,62 @@
 			} catch { /* 준비 전 */ }
 		}, 250);
 	});
-	onDestroy(() => { if (timer) clearInterval(timer); window.removeEventListener('resize', onResize); });
+	onDestroy(() => { if (timer) clearInterval(timer); window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); });
+
+	// ── 탭 싱크: 재생하며 각 소절 첫 소리에 탭(Space/클릭) → lineTimes 생성 (admin) ──
+	function onKey(e: KeyboardEvent) {
+		if (syncMode && (e.code === 'Space' || e.key === ' ')) { e.preventDefault(); tapSync(); }
+	}
+	function startSync() {
+		if (!cur || !lines.length) return;
+		detailIdx = null; rowLoopOn = false; vocalStopAt = null;
+		syncMode = true; syncTimes = []; syncPos = 0; syncMsg = '';
+		player?.seekTo?.(0, true);
+		player?.playVideo?.();
+	}
+	function tapSync() {
+		if (!syncMode || syncPos >= lines.length) return;
+		const t = player?.getCurrentTime?.();
+		if (typeof t !== 'number') return;
+		syncTimes = [...syncTimes.slice(0, syncPos), t];
+		syncPos += 1;
+		lineEls[Math.min(syncPos, lines.length - 1)]?.scrollIntoView({ block: 'center' });
+		if (syncPos >= lines.length) player?.pauseVideo?.();
+	}
+	function undoSync() {
+		if (syncPos <= 0) return;
+		syncPos -= 1;
+		syncTimes = syncTimes.slice(0, syncPos);
+		lineEls[syncPos]?.scrollIntoView({ block: 'center' });
+	}
+	function cancelSync() { syncMode = false; syncTimes = []; syncPos = 0; syncMsg = ''; player?.pauseVideo?.(); }
+	async function saveSync() {
+		if (!cur || syncPos < 1) { syncMsg = '소절을 먼저 탭해줘.'; return; }
+		syncSaving = true; syncMsg = '';
+		const times = [];
+		for (let i = 0; i < syncPos; i++) {                 // 탭한 데까지만(0..syncPos-1) — 줄 인덱스와 정렬 유지
+			const start = syncTimes[i];
+			let end = syncTimes[i + 1];
+			if (typeof end !== 'number' || end <= start) end = start + 5;
+			times.push({ start: Math.max(0, start), end });
+		}
+		try {
+			const r = await fetch('/api/songs/times', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: cur.id, times })
+			});
+			const d = await r.json();
+			if (d.ok) {
+				const id = cur.id;
+				songs = await fetch('/api/songs').then((x) => (x.ok ? x.json() : { songs: [] })).then((x) => x.songs || []);
+				syncMode = false;
+				const again = songs.find((x) => x.id === id);
+				if (again) select(again);
+				syncMsg = `✅ ${d.count}개 소절 싱크 저장! 이제 줄 클릭하면 그 소절부터 재생된다.`;
+			} else { syncMsg = `❌ ${d.error || '저장 실패'}`; }
+		} catch { syncMsg = '❌ 연결 오류'; }
+		syncSaving = false;
+	}
 
 	function mount(s: Song) {
 		if (!ytReady || !(window as any).YT?.Player) return;
@@ -147,11 +212,13 @@
 	}
 
 	function onLineClick(i: number) {
+		if (syncMode) { tapSync(); return; }               // 싱크 중엔 클릭=탭
 		if (!cur?.lineTimes?.[i]) return;
 		if (clickTimer) clearTimeout(clickTimer);
 		clickTimer = setTimeout(() => { clickTimer = null; seekPlay(i); }, 260);
 	}
 	function onLineDbl(i: number) {
+		if (syncMode) return;
 		if (!cur?.lineTimes?.[i]) return;
 		if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
 		openDetail(i);
@@ -223,14 +290,36 @@
 					<div class="fallback">플레이어가 안 뜨면(광고 차단·네트워크) 위 <b>유튜브에서 열기</b>로. 가사 해설은 여기서 계속 볼 수 있어.</div>
 				{/if}
 
+				{#if isAdmin && lines.length}
+					{#if syncMode}
+						<div class="syncbar">
+							<div class="sync-h">🎯 탭 싱크 <span class="sync-prog">{syncPos} / {lines.length}</span></div>
+							<div class="sync-now">지금 소절: <b>{syncPos < lines.length ? lines[syncPos] : '끝까지 완료!'}</b></div>
+							<div class="sync-btns">
+								<button class="sbtn accent" onclick={tapSync} disabled={syncPos >= lines.length}>👆 탭 (Space)</button>
+								<button class="sbtn" onclick={undoSync} disabled={syncPos <= 0}>↩ 되돌리기</button>
+								<button class="sbtn ok" onclick={saveSync} disabled={syncPos < 1 || syncSaving}>{syncSaving ? '저장 중…' : '💾 저장'}</button>
+								<button class="sbtn" onclick={cancelSync}>✕ 취소</button>
+							</div>
+							<div class="sync-tip">영상 재생 중, 각 소절 <b>첫 소리</b>에 탭/Space (가사 줄을 눌러도 됨). 틀리면 되돌리기.</div>
+							{#if syncMsg}<div class="sync-msg">{syncMsg}</div>{/if}
+						</div>
+					{:else}
+						<div class="syncrow">
+							<button class="syncstart" onclick={startSync}>🎯 탭으로 싱크 만들기{cur.lineTimes?.length ? ' (다시)' : ''}</button>
+							{#if syncMsg}<span class="sync-msg ok">{syncMsg}</span>{/if}
+						</div>
+					{/if}
+				{/if}
+
 				{#if lines.length}
 					<div class="lyrics">
 						{#each lines as l, i (i)}
 							{@const n = (cur.lineNotes || [])[i]}
 							{@const hasTime = !!cur.lineTimes?.[i]}
-							<div class="line" class:now={nowIdx === i} class:seekable={hasTime} bind:this={lineEls[i]}>
+							<div class="line" class:now={nowIdx === i} class:seekable={hasTime || syncMode} class:tapnow={syncMode && syncPos === i} bind:this={lineEls[i]}>
 								<button class="jp" ondblclick={() => onLineDbl(i)} onclick={() => onLineClick(i)}
-									title={hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : ''}>
+									title={syncMode ? '탭: 이 소절 타이밍 기록' : (hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : '')}>
 									{@html (n?.h) || l}{#if n?.cont}<span class="cont">→</span>{/if}
 								</button>
 								{#if n?.t}<div class="tr">{n.t}</div>{/if}
@@ -303,6 +392,27 @@
 	.tr { font-size: 17px; margin-top: 4px; opacity: .9; }
 	.nt { color: var(--sub); font-size: 15px; margin-top: 3px; word-break: keep-all; }
 	.nt.dim { opacity: .6; }
+
+	/* 탭 싱크 (admin 전용) */
+	.syncrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 12px; }
+	.syncstart { padding: 9px 15px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; }
+	.syncstart:hover { background: var(--accent); color: #fff; }
+	.syncbar { background: var(--card); border: 1px solid var(--accent); border-radius: 12px; padding: 14px 16px; margin: 4px 0 14px; position: sticky; top: 8px; z-index: 30; }
+	.sync-h { font-size: 15px; font-weight: 800; }
+	.sync-prog { color: var(--accent); margin-left: 6px; }
+	.sync-now { margin: 6px 0 10px; font-family: var(--jp); font-size: 20px; word-break: keep-all; }
+	.sync-now b { color: var(--accent); }
+	.sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+	.sbtn { padding: 10px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--btn); color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer; }
+	.sbtn:hover { border-color: var(--accent); }
+	.sbtn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+	.sbtn.ok { background: var(--ok); border-color: var(--ok); color: #14161b; }
+	.sbtn:disabled { opacity: .45; cursor: default; }
+	.sync-tip { color: var(--sub); font-size: 12.5px; margin-top: 9px; line-height: 1.5; word-break: keep-all; }
+	.sync-msg { font-size: 13.5px; color: var(--accent); word-break: keep-all; }
+	.syncbar .sync-msg { margin-top: 8px; }
+	.sync-msg.ok { color: var(--ok); }
+	.line.tapnow { background: var(--accent-soft); border-left-color: var(--accent); outline: 2px solid var(--accent); }
 
 	/* 상세 패널: 더블클릭한 행 옆(오른쪽)에 fixed로 붙는다. top·right는 JS가 행 높이·레이아웃 끝에 맞춰 계산 */
 	.dpanel { position: fixed; top: 0; right: 0; width: 420px; max-height: 84vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; transition: top .18s ease; z-index: 55; box-shadow: 0 10px 34px rgba(0,0,0,.42); }
