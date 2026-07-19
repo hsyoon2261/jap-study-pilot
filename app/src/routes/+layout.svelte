@@ -8,13 +8,14 @@
 	let { children } = $props();
 	let ready = $state(false);
 	let authed = $state(false);
+	let isAdmin = $state(false);
 
 	onMount(async () => {
 		if (page.url.pathname === '/login') { ready = true; return; }
 		try {
 			const r = await fetch('/api/me');
 			authed = r.ok;
-			if (r.ok) { const d = await r.json(); enforceVoiceAccess(d.username === 'admin'); }
+			if (r.ok) { const d = await r.json(); isAdmin = d.username === 'admin'; enforceVoiceAccess(isAdmin); }
 		} catch { authed = false; }
 		if (!authed) { location.href = '/login'; return; }
 		ready = true;
@@ -61,7 +62,7 @@
 {:else if ready}
 	<!-- 데스크톱: 좌측 사이드바 (그대로) -->
 	<nav class="sidenav">
-		{#each NAV as item (item.href)}
+		{#each NAV.filter((i) => i.href !== '/helper' || isAdmin) as item (item.href)}
 			<a href={item.href} class:on={isActive(item)}>
 				<span class="ic">{item.icon}</span>
 				<span class="lb">{item.label}</span>
