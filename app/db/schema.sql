@@ -45,3 +45,11 @@ CREATE TABLE IF NOT EXISTS set_progress (
   done_at  TEXT,
   PRIMARY KEY (user_id, set_id)
 );
+
+-- 사용자(admin)가 웹에서 붙여넣은 곡 가사 원문. 튜터가 이걸 읽어 lineNotes를 달아 songs.json에 반영.
+CREATE TABLE IF NOT EXISTS song_lyrics (
+  song_id    TEXT PRIMARY KEY,
+  lyric      TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT NOT NULL
+);

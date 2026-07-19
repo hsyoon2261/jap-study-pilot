@@ -87,10 +87,16 @@
 		player = new (window as any).YT.Player('yt', { videoId: s.videoId, playerVars: { rel: 0, playsinline: 1 } });
 	}
 
-	function select(s: Song) {
+	async function select(s: Song) {
 		cur = s; detailIdx = null; nowIdx = -1; rowLoopOn = false; vocalStopAt = null;
 		manualHiIdx = -1; lineEls = [];
-		lines = (s.lyric || '').split(/\n+/).map((x) => x.trim()).filter(Boolean);
+		let text = s.lyric || '';
+		// songs.json에 아직 해설 가사가 없으면, admin이 붙여넣은 원문(D1)을 가져와 표시(해설 전)
+		if (!text) {
+			const d = await fetch(`/api/songs/lyric?id=${s.id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+			if (d?.lyric && cur?.id === s.id) text = d.lyric;
+		}
+		lines = text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
 		mount(s);
 	}
 
