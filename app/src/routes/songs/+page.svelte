@@ -5,7 +5,7 @@
 
 	type Note = { t?: string; n?: string; h?: string; d?: string; cont?: boolean };
 	type Time = { start: number; end: number };
-	type Song = { id: string; song: string; artist: string; videoId: string; lyric?: string; lineNotes?: Note[]; lineTimes?: Time[]; date?: string };
+	type Song = { id: string; song: string; artist: string; videoId: string; lyric?: string; pastedLyric?: string; lineNotes?: Note[]; lineTimes?: Time[]; date?: string };
 
 	let songs = $state<Song[]>([]);
 	let cur = $state<Song | null>(null);
@@ -34,7 +34,7 @@
 	const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
 	onMount(async () => {
-		songs = await fetch('/content/songs.json').then((r) => r.json());
+		songs = await fetch('/api/songs').then((r) => (r.ok ? r.json() : { songs: [] })).then((d) => d.songs || []);
 		(window as any).onYouTubeIframeAPIReady = () => { ytReady = true; if (cur) mount(cur); };
 		if (!(window as any).YT) {
 			const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
@@ -90,12 +90,8 @@
 	async function select(s: Song) {
 		cur = s; detailIdx = null; nowIdx = -1; rowLoopOn = false; vocalStopAt = null;
 		manualHiIdx = -1; lineEls = [];
-		let text = s.lyric || '';
-		// songs.json에 아직 해설 가사가 없으면, admin이 붙여넣은 원문(D1)을 가져와 표시(해설 전)
-		if (!text) {
-			const d = await fetch(`/api/songs/lyric?id=${s.id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-			if (d?.lyric && cur?.id === s.id) text = d.lyric;
-		}
+		// 해설 가사(lyric)가 있으면 그걸, 없으면 admin이 붙여넣은/불러온 원문(pastedLyric)을 표시
+		const text = s.lyric || s.pastedLyric || '';
 		lines = text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
 		mount(s);
 	}

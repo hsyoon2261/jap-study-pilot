@@ -10,8 +10,10 @@ async function isAdmin(db: any, uid: string | null): Promise<boolean> {
 	return row?.username === 'admin';
 }
 
-// GET ?id=곡id → 그 곡의 붙여넣은 가사 / id 없으면 붙여넣은 곡 목록
-export async function GET({ url, platform }) {
+// GET ?id=곡id → 그 곡의 붙여넣은 가사 / id 없으면 붙여넣은 곡 목록. 로그인 필수.
+export async function GET({ url, platform, cookies }) {
+	const uid = await verifySid(cookies.get('sid'));
+	if (!uid) return json({ ok: false, error: '로그인이 필요해.' }, { status: 401 });
 	const db = platform?.env?.DB;
 	if (!db) return json({ ok: false }, { status: 500 });
 	const id = url.searchParams.get('id');

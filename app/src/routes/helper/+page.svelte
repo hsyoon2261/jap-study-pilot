@@ -12,10 +12,11 @@
 	let selId = $state('');
 	let lyricText = $state('');
 	let saving = $state(false);
+	let fetching = $state(false);
 	let msg = $state('');
 
 	onMount(async () => {
-		try { songs = await fetch('/content/songs.json').then((r) => r.json()); } catch { songs = []; }
+		try { songs = await fetch('/api/songs').then((r) => (r.ok ? r.json() : { songs: [] })).then((d) => d.songs || []); } catch { songs = []; }
 		const me = await fetch('/api/me').then((r) => (r.ok ? r.json() : null)).catch(() => null);
 		isAdmin = me?.username === 'admin';
 		await loadPasted();
@@ -36,6 +37,24 @@
 		if (pasted[s.id]) return { label: '가사 붙여넣음 · 해설 대기', cls: 'mid' };
 		if (s.lyricUrl) return { label: '가사 대기 (붙여넣기)', cls: 'mid' };
 		return { label: '주소 없음', cls: 'off' };
+	}
+
+	async function fetchFromUtaten() {
+		if (!selId) { msg = '곡부터 골라줘.'; return; }
+		fetching = true; msg = '';
+		try {
+			const r = await fetch('/api/songs/fetch', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: selId })
+			});
+			const d = await r.json();
+			if (d.ok) {
+				lyricText = d.lyric;
+				msg = `✅ 우타텐에서 원문을 가져와 저장했어! 아래에 채워졌으니 확인하고, 고칠 게 있으면 고쳐서 "저장" 다시 눌러. 그다음 튜터한테 "가사 가져왔어" 하면 소절 나눠 해석 달아 노래 탭에 올려준다.`;
+				await loadPasted();
+			} else { msg = `❌ ${d.error || '가져오기 실패'}`; }
+		} catch { msg = '❌ 연결 오류'; }
+		fetching = false;
 	}
 
 	async function save() {
@@ -72,8 +91,11 @@
 			</select>
 
 			{#if sel?.lyricUrl}
-				<a class="uta" href={sel.lyricUrl} target="_blank" rel="noopener">🔗 우타텐에서 「{sel.song}」 가사 보기 ↗</a>
-				<p class="tip">위 링크 열어서 가사 전체를 복사 → 아래에 붙여넣기. (내가 웹에서 못 긁어오니 네가 붙여넣는 거다)</p>
+				<div class="fetchrow">
+					<button class="btn2" onclick={fetchFromUtaten} disabled={fetching || saving}>{fetching ? '가져오는 중…' : '⚡ 우타텐에서 바로 가져오기'}</button>
+					<a class="uta" href={sel.lyricUrl} target="_blank" rel="noopener">🔗 우타텐에서 보기 ↗</a>
+				</div>
+				<p class="tip">버튼 한 번이면 서버가 우타텐에서 원문을 긁어 아래에 채우고 저장까지 한다. (서버가 막히면 링크 열어 직접 복사→붙여넣기)</p>
 			{:else if sel}
 				<p class="tip">이 곡은 우타텐 주소가 없어. 아무 가사 원문이나 붙여넣어도 돼.</p>
 			{/if}
@@ -109,7 +131,11 @@
 	.lbl { display: block; font-size: 12px; color: var(--sub); font-weight: 600; margin: 14px 0 5px; }
 	.inp { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--btn); color: var(--text); font-size: 15px; }
 	.ta { resize: vertical; font-family: var(--jp); line-height: 1.7; }
-	.uta { display: inline-block; margin-top: 12px; color: var(--accent); font-weight: 700; font-size: 14.5px; }
+	.fetchrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+	.btn2 { padding: 11px 16px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 14.5px; cursor: pointer; white-space: nowrap; }
+	.btn2:hover { background: var(--accent); color: #fff; }
+	.btn2:disabled { opacity: 0.6; cursor: default; }
+	.uta { display: inline-block; color: var(--accent); font-weight: 700; font-size: 14px; }
 	.uta:hover { text-decoration: underline; }
 	.tip { color: var(--sub); font-size: 13px; margin: 6px 0 0; line-height: 1.5; word-break: keep-all; }
 	.btn { margin-top: 14px; padding: 12px 20px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
