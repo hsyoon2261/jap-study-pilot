@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { speak, stopSpeak } from '$lib/audio';
 
-	type Note = { t?: string; n?: string; h?: string; d?: string; cont?: boolean };
+	type Note = { t?: string; n?: string; h?: string; r?: string; d?: string; cont?: boolean };
 	type Time = { start: number; end: number };
 	type Song = { id: string; song: string; artist: string; videoId: string; lyric?: string; pastedLyric?: string; lineNotes?: Note[]; lineTimes?: Time[]; date?: string };
 
@@ -17,8 +17,14 @@
 
 	let player: any = null;
 	let ytReady = false;
-	let tick: any = null;
+	let timer: any = null;
 	let lineEls: HTMLElement[] = [];
+
+	// 레거시 이식: 상세 패널을 더블클릭한 행 옆에 붙이기 위한 참조/오프셋
+	let layoutEl = $state<HTMLElement | undefined>();
+	let panelEl = $state<HTMLElement | undefined>();
+	let panelTop = $state(0);
+	let panelRight = $state(0);
 
 	// 재생 제어 내부 상태 (템플릿에서 안 읽으므로 일반 변수)
 	let rowLoopStart = 0, rowLoopEnd = 0;
@@ -33,6 +39,25 @@
 	const watchUrl = (s: Song | null) => s ? `https://www.youtube.com/watch?v=${s.videoId}` : '#';
 	const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
+	// 상세 패널: 더블클릭한 행 옆 높이에 fixed로 고정. 절대조건 = 패널 전체가 화면 안에 보일 것.
+	// (본문이 좁아지며 리플로우가 커도 fixed는 뷰포트 기준이라 흔들리지 않는다)
+	function positionPanel() {
+		if (detailIdx === null || !layoutEl || !panelEl) return;
+		if (window.innerWidth <= 1200) { panelTop = 0; panelRight = 0; return; } // 좁으면 CSS가 오른쪽 전체 오버레이
+		const layoutRect = layoutEl.getBoundingClientRect();
+		panelRight = Math.max(8, Math.round(window.innerWidth - layoutRect.right)); // 레이아웃 오른쪽 끝에 도킹
+		const rowEl = lineEls[detailIdx];
+		const panelH = panelEl.offsetHeight;
+		let top = 14;
+		if (rowEl) {
+			top = rowEl.getBoundingClientRect().top - 6;             // 행 높이
+			top = Math.min(top, window.innerHeight - panelH - 14);   // 아래로 잘리면 위로 당김
+			top = Math.max(top, 14);                                 // 위로도 안 잘리게
+		}
+		panelTop = Math.round(top);
+	}
+	const onResize = () => positionPanel();
+
 	onMount(async () => {
 		songs = await fetch('/api/songs').then((r) => (r.ok ? r.json() : { songs: [] })).then((d) => d.songs || []);
 		(window as any).onYouTubeIframeAPIReady = () => { ytReady = true; if (cur) mount(cur); };
@@ -44,19 +69,19 @@
 		} else { ytReady = true; }
 
 		const wantId = page.url.searchParams.get('id');
-		const first = (wantId && songs.find((s) => s.id === wantId)) || songs.find((s) => s.lyric) || songs[0];
+		const first = (wantId && songs.find((s) => s.id === wantId)) || songs.find((s) => s.lyric || s.pastedLyric) || songs[0];
 		if (first) select(first);
 
 		const onScroll = () => { lastUserScroll = Date.now(); };
 		window.addEventListener('wheel', onScroll, { passive: true });
 		window.addEventListener('touchmove', onScroll, { passive: true });
+		window.addEventListener('resize', onResize);
 
-		tick = setInterval(() => {
+		timer = setInterval(() => {
 			if (!player?.getCurrentTime) return;
 			try {
 				const t = player.getCurrentTime();
 				const times = cur?.lineTimes;
-				// 현재 줄 하이라이트 (보컬 리드 보정 + 방금 클릭한 행 우선)
 				if (times && times.length) {
 					let idx = -1;
 					const tt = t - HIGHLIGHT_LAG;
@@ -72,14 +97,12 @@
 						}
 					}
 				}
-				// 소절 반복
 				if (rowLoopOn && t >= rowLoopEnd) { player.seekTo(Math.max(0, rowLoopStart - 0.2), true); return; }
-				// 한 소절만 듣기: 끝나면 정지
 				if (vocalStopAt !== null && t >= vocalStopAt) { player.pauseVideo(); vocalStopAt = null; }
 			} catch { /* 준비 전 */ }
 		}, 250);
 	});
-	onDestroy(() => { if (tick) clearInterval(tick); });
+	onDestroy(() => { if (timer) clearInterval(timer); window.removeEventListener('resize', onResize); });
 
 	function mount(s: Song) {
 		if (!ytReady || !(window as any).YT?.Player) return;
@@ -87,7 +110,7 @@
 		player = new (window as any).YT.Player('yt', { videoId: s.videoId, playerVars: { rel: 0, playsinline: 1 } });
 	}
 
-	async function select(s: Song) {
+	function select(s: Song) {
 		cur = s; detailIdx = null; nowIdx = -1; rowLoopOn = false; vocalStopAt = null;
 		manualHiIdx = -1; lineEls = [];
 		// 해설 가사(lyric)가 있으면 그걸, 없으면 admin이 붙여넣은/불러온 원문(pastedLyric)을 표시
@@ -134,10 +157,13 @@
 		openDetail(i);
 	}
 
-	function openDetail(i: number) {
+	async function openDetail(i: number) {
 		if (detailIdx === i) { closeDetail(); return; }
 		detailIdx = i;
 		rowLoopOn = false;
+		await tick();                                       // .panel-open 반영(본문 리플로우) 후
+		lineEls[i]?.scrollIntoView({ block: 'center' });    // 그 행을 화면 안으로
+		positionPanel();                                    // 패널을 그 행 높이에 고정
 		const t = cur?.lineTimes?.[i];
 		if (t) { rowLoopStart = t.start; rowLoopEnd = t.end; playVocal(i); }
 	}
@@ -168,72 +194,96 @@
 
 <svelte:head><title>노래로 공부</title></svelte:head>
 
-<div class="page" class:shift={detailIdx !== null}>
+<div class="songpage">
 	<h1 class="page-title">노래로 공부 🎵</h1>
-	<p class="page-sub">클릭 = 그 소절부터 이어 재생 · 더블클릭 = 상세 + 그 소절만 · 상세에서 🔁 반복.</p>
+	<p class="page-sub">클릭 = 그 소절부터 이어 재생 · 더블클릭 = 오른쪽에 상세 해설(반복 포함).</p>
 
-	<div class="songrow">
-		{#each songs as s (s.id)}
-			<button class="spick" class:on={cur?.id === s.id} onclick={() => select(s)}>
-				<span class="st">{s.song}</span><span class="sa">{s.artist}</span>
-			</button>
-		{/each}
-	</div>
-
-	{#if cur}
-		<div class="player"><div id="yt"></div></div>
-		<div class="phint">
-			<span>▶ 재생 후 <b>가사 줄 클릭</b> = 그 지점부터 · <b>더블클릭</b> = 그 소절만 듣고 정지</span>
-			<a class="ytlink" href={watchUrl(cur)} target="_blank" rel="noopener">유튜브에서 열기 ↗</a>
-		</div>
-		{#if apiFailed}
-			<div class="fallback">플레이어가 안 뜨면(광고 차단·네트워크) 위 <b>유튜브에서 열기</b>로. 가사 해설은 여기서 계속 볼 수 있어.</div>
-		{/if}
-
-		{#if lines.length}
-			<div class="lyrics">
-				{#each lines as l, i (i)}
-					{@const n = (cur.lineNotes || [])[i]}
-					{@const hasTime = !!cur.lineTimes?.[i]}
-					<div class="line" class:now={nowIdx === i} class:seekable={hasTime} bind:this={lineEls[i]}>
-						<button class="jp" ondblclick={() => onLineDbl(i)} onclick={() => onLineClick(i)}
-							title={hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : ''}>
-							{@html (n?.h) || l}{#if n?.cont}<span class="cont">→</span>{/if}
-						</button>
-						{#if n?.t}<div class="tr">{n.t}</div>{/if}
-						{#if n?.n}<div class="nt">{n.n}</div>{/if}
-						{#if !n}<div class="nt dim">⏳ 해설 대기</div>{/if}
-					</div>
+	<div class="layout" class:panel-open={detailIdx !== null} bind:this={layoutEl}>
+		<!-- 왼쪽: 곡 목록 (스크롤 내려도 붙어 있음) -->
+		<div class="songs-col">
+			<div class="col-label">곡 목록</div>
+			<div class="list">
+				{#each songs as s (s.id)}
+					<button class="song-pick" class:on={cur?.id === s.id} onclick={() => select(s)}>
+						<span class="sp-t">{s.song}</span><span class="sp-a">{s.artist}</span>
+					</button>
 				{/each}
 			</div>
-		{:else}
-			<p class="page-sub" style="margin-top:16px">이 곡은 아직 가사 해설이 없어. (곡 추가·가사 세팅은 데스크탑에서)</p>
+		</div>
+
+		<!-- 가운데: 플레이어 + 가사 -->
+		<div class="main-col">
+			{#if cur}
+				<div class="player"><div id="yt"></div></div>
+				<div class="phint">
+					<span>▶ 재생 후 <b>가사 줄 클릭</b> = 그 지점부터 · <b>더블클릭</b> = 오른쪽 상세 + 그 소절</span>
+					<a class="ytlink" href={watchUrl(cur)} target="_blank" rel="noopener">유튜브에서 열기 ↗</a>
+				</div>
+				{#if apiFailed}
+					<div class="fallback">플레이어가 안 뜨면(광고 차단·네트워크) 위 <b>유튜브에서 열기</b>로. 가사 해설은 여기서 계속 볼 수 있어.</div>
+				{/if}
+
+				{#if lines.length}
+					<div class="lyrics">
+						{#each lines as l, i (i)}
+							{@const n = (cur.lineNotes || [])[i]}
+							{@const hasTime = !!cur.lineTimes?.[i]}
+							<div class="line" class:now={nowIdx === i} class:seekable={hasTime} bind:this={lineEls[i]}>
+								<button class="jp" ondblclick={() => onLineDbl(i)} onclick={() => onLineClick(i)}
+									title={hasTime ? '클릭: 여기부터 · 더블클릭: 이 소절만' : ''}>
+									{@html (n?.h) || l}{#if n?.cont}<span class="cont">→</span>{/if}
+								</button>
+								{#if n?.t}<div class="tr">{n.t}</div>{/if}
+								{#if n?.n}<div class="nt">{n.n}</div>{/if}
+								{#if !n}<div class="nt dim">⏳ 해설 대기</div>{/if}
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<p class="page-sub" style="margin-top:16px">이 곡은 아직 가사가 없어. (헬퍼에서 우타텐 불러오기 / 붙여넣기)</p>
+				{/if}
+			{:else}
+				<p class="page-sub">왼쪽에서 곡을 골라줘.</p>
+			{/if}
+		</div>
+
+		<!-- 오른쪽: 더블클릭한 행 옆에 붙는 상세 패널 -->
+		{#if detailIdx !== null && cur}
+			<aside class="dpanel" bind:this={panelEl} style="top:{panelTop}px; right:{panelRight}px">
+				<button class="dclose" onclick={closeDetail}>✕ 닫기</button>
+				<div class="col-label">소절 상세 {#if cur.lineTimes?.[detailIdx]}<span class="dt">{fmt(cur.lineTimes[detailIdx].start)}~</span>{/if}</div>
+				<div class="djp">{@html detailNote.h || lines[detailIdx]}</div>
+				{#if !detailNote.h && detailNote.r}<div class="drom">{detailNote.r}</div>{/if}
+				{#if detailNote.t}<div class="dtr">{detailNote.t}</div>{/if}
+				<div class="dbtns">
+					<button class="dbtn" class:on={rowLoopOn} onclick={toggleRowLoop} disabled={!cur.lineTimes?.[detailIdx]}>{rowLoopOn ? '⏹ 반복 끄기' : '🔁 이 소절 반복'}</button>
+					<button class="dbtn" onclick={() => playVocal(detailIdx!)} disabled={!cur.lineTimes?.[detailIdx]}>▶ 한 번 듣기</button>
+					<button class="dbtn" onclick={() => slowSpeak(detailIdx!)}>🗣 느리게 발음</button>
+				</div>
+				<div class="dbody">{@html detailNote.d || (detailNote.n ? `<div>${detailNote.n}</div>` : '더 깊은 해설은 데스크탑에서 추가.')}</div>
+			</aside>
 		{/if}
-	{/if}
+	</div>
 </div>
 
-{#if detailIdx !== null && cur}
-	<aside class="dpanel">
-		<button class="dclose" onclick={closeDetail}>✕ 닫기</button>
-		<div class="dh">소절 상세 {#if cur.lineTimes?.[detailIdx]}<span class="dt">{fmt(cur.lineTimes[detailIdx].start)}~</span>{/if}</div>
-		<div class="djp">{@html detailNote.h || lines[detailIdx]}</div>
-		{#if detailNote.t}<div class="dtr">{detailNote.t}</div>{/if}
-		<div class="dbtns">
-			<button class="dbtn" class:on={rowLoopOn} onclick={toggleRowLoop} disabled={!cur.lineTimes?.[detailIdx]}>{rowLoopOn ? '⏹ 반복 끄기' : '🔁 이 소절 반복'}</button>
-			<button class="dbtn" onclick={() => playVocal(detailIdx!)} disabled={!cur.lineTimes?.[detailIdx]}>▶ 한 번 듣기</button>
-			<button class="dbtn" onclick={() => slowSpeak(detailIdx!)}>🗣 느리게 발음</button>
-		</div>
-		<div class="dbody">{@html detailNote.d || (detailNote.n ? `<div>${detailNote.n}</div>` : '더 깊은 해설은 데스크탑에서 추가.')}</div>
-	</aside>
-{/if}
-
 <style>
-	.songrow { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin: 14px 0; }
-	.spick { flex-shrink: 0; min-width: 150px; text-align: left; padding: 11px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); cursor: pointer; }
-	.spick.on { border-color: var(--accent); background: var(--btn); }
-	.spick .st { display: block; font-weight: 700; font-size: 15px; }
-	.spick .sa { color: var(--sub); font-size: 12px; }
-	.player { position: relative; width: 100%; max-width: 900px; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+	.songpage { max-width: 1520px; margin: 0 auto; padding: 28px 18px 90px; }
+
+	/* 본문 그리드: 곡 목록 | 본문 | (상세 열리면) 상세 패널 */
+	.layout { position: relative; display: grid; grid-template-columns: 200px minmax(0, 900px); gap: 14px; align-items: start; margin-top: 16px; }
+	.layout.panel-open { grid-template-columns: 200px minmax(0, 1fr) 420px; }
+
+	.songs-col { position: sticky; top: 12px; }
+	.col-label { color: var(--sub); font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+	.list { display: flex; flex-direction: column; gap: 8px; }
+	.song-pick { display: block; width: 100%; text-align: left; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); cursor: pointer; }
+	.song-pick:hover { border-color: var(--accent); }
+	.song-pick.on { border-color: var(--accent); background: var(--btn); }
+	.song-pick .sp-t { display: block; font-weight: 700; font-size: 16px; word-break: keep-all; }
+	.song-pick .sp-a { color: var(--sub); font-size: 12.5px; }
+
+	.main-col { min-width: 0; }
+	.player { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
 	.player :global(iframe) { position: absolute; inset: 0; width: 100%; height: 100%; }
 	.phint { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: -2px 0 14px; color: var(--sub); font-size: 13.5px; }
 	.phint b { color: var(--text); }
@@ -253,13 +303,14 @@
 	.tr { font-size: 17px; margin-top: 4px; opacity: .9; }
 	.nt { color: var(--sub); font-size: 15px; margin-top: 3px; word-break: keep-all; }
 	.nt.dim { opacity: .6; }
-	.dpanel { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 94vw; background: var(--card); border-left: 1px solid var(--border); padding: 20px; overflow-y: auto; z-index: 60; box-shadow: -14px 0 40px rgba(0,0,0,.5); }
-	@media (min-width: 1300px) { .page.shift { padding-right: 440px; } }
-	.dclose { position: absolute; top: 16px; right: 16px; background: var(--btn); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 11px; cursor: pointer; }
-	.dh { color: var(--sub); font-size: 13px; }
-	.dh .dt { color: var(--accent); }
-	.djp { font-family: var(--jp); font-size: 26px; line-height: 1.9; margin: 8px 0 4px; }
+
+	/* 상세 패널: 더블클릭한 행 옆(오른쪽)에 fixed로 붙는다. top·right는 JS가 행 높이·레이아웃 끝에 맞춰 계산 */
+	.dpanel { position: fixed; top: 0; right: 0; width: 420px; max-height: 84vh; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; transition: top .18s ease; z-index: 55; box-shadow: 0 10px 34px rgba(0,0,0,.42); }
+	.dclose { position: absolute; top: 14px; right: 14px; background: var(--btn); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 11px; cursor: pointer; font-size: 14px; }
+	.dt { color: var(--accent); }
+	.djp { font-family: var(--jp); font-size: 26px; line-height: 1.9; margin: 8px 24px 4px 0; }
 	.djp :global(rt) { font-size: 12px; color: var(--accent); }
+	.drom { color: var(--accent); font-size: 15px; margin-bottom: 4px; }
 	.dtr { font-size: 18px; margin-bottom: 12px; }
 	.dbtns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 	.dbtn { padding: 11px 6px; border-radius: 9px; border: 1px solid var(--border); background: var(--btn); color: var(--text); cursor: pointer; font-size: 14px; font-weight: 600; }
@@ -269,7 +320,24 @@
 	.dbody { font-size: 16px; line-height: 1.75; word-break: keep-all; }
 	.dbody :global(table) { width: 100%; border-collapse: collapse; margin: 10px 0; }
 	.dbody :global(th), .dbody :global(td) { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; font-size: 14.5px; }
+	.dbody :global(th) { color: var(--sub); font-size: 13px; }
 	.dbody :global(.jp) { font-family: var(--jp); font-size: 18px; }
 	.dbody :global(b) { color: var(--accent); }
 	.dbody :global(.tr) { margin: 8px 0; }
+
+	/* ≤1200px: 상세 패널을 오른쪽 고정 오버레이로 (행 옆 배치가 좁아서 안 예쁨) */
+	@media (max-width: 1200px) {
+		.layout.panel-open { grid-template-columns: 200px minmax(0, 1fr); }
+		.dpanel { position: fixed !important; top: 0 !important; right: 0; bottom: 0; width: min(430px, 92vw); max-height: none; border-radius: 0; z-index: 70; box-shadow: -10px 0 32px rgba(0,0,0,.55); }
+	}
+	/* ≤700px: 곡 목록을 상단 가로 스크롤로, 본문 1열 */
+	@media (max-width: 700px) {
+		.layout, .layout.panel-open { grid-template-columns: minmax(0, 1fr); }
+		.songs-col { position: static; }
+		.list { flex-direction: row; overflow-x: auto; padding-bottom: 6px; }
+		.song-pick { width: auto; min-width: 150px; flex-shrink: 0; }
+		.jp { font-size: 25px; }
+		.tr { font-size: 16px; }
+		.dpanel { width: 100vw; }
+	}
 </style>
